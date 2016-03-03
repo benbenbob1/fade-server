@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+<script src="/js/jscolor.min.js"></script>
+<script src="/js/socketio/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+<link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet' type='text/css'>
+<style type="text/css">
+
+    html {
+        height: 95%;
+    }
+
+    body {
+        background: #666;
+        color: #ddd;
+        font-size: 15px;
+        font-family: 'Montserrat', sans-serif;
+        text-align: center;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    #main {
+        position: relative;
+        top: 20%;
+    }
+
+    #lock-strips {
+        cursor: pointer;
+        position: relative;
+        display: block;
+        background-size: contain;
+        height: 40px;
+        width: 40px;
+        margin: 36px auto 30px auto;
+    }
+
+    button:hover {
+    	box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
+    	margin-top: 3px;
+        margin-bottom: -3px;
+    }
+
+    button:focus {
+    	outline: none;
+    	box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+    	margin-top: 3px;
+        margin-bottom: -3px;
+    }
+
+    button:disabled {
+        box-shadow: none;
+        margin-top: 3px;
+        margin-bottom: -2px;
+        background-color: darkgrey;
+        border-radius: 0;
+    }
+
+    button {
+    	transition: 0.05s linear all;
+        border-radius: 5px;
+        border: none;
+        box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
+    }
+
+    .jscolor {
+        cursor: pointer;
+        max-width: 80%;
+        height: 60px;
+        width: 280px;
+        text-align: center;
+        font-size: 30px;
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    .jscolor-error {
+        box-shadow: 0px 10px 0px 0px rgba(204,50,50,0.75);
+    }
+
+    
+
+</style>
+<script type="text/javascript">
+    var colorsLocked, lastButtonPressedId;
+    var socket = io.connect("http://rpi.student.rit.edu:8080");
+    //http://rpi.student.rit.edu:8080
+    //http://127.0.0.1:8080
+
+    socket.on('color', function(data){
+        //console.log("Rec: "+JSON.stringify(data));
+        if (data) {
+            for (var i=0; i<data.length; i++) {
+                setLocalColor(i, data[i]);
+            }
+        }
+    });
+
+    function setLocalColor(strip, color) {
+        var elem = 'cc'+(strip+1);
+
+        //console.log("Setting "+elem+" to "+JSON.stringify(color));
+
+        document.getElementById(elem).style.background = rgbToHex(color[0], color[1], color[2]);
+        //$('#'+elem).prop("value", rgbToHex(color[0], color[1], color[2]));
+        $('#'+elem).css("color", getTextColorForBackground(color[0], color[1], color[2]));
+    }
+
+    $(document).ready(function() {
+        colorsLocked = localStorage.getItem("locked");
+
+        if (colorsLocked === "false") {
+            colorsLocked = true;
+            //Reverse so the function will act naturally
+        } else {
+            colorsLocked = false;
+        }
+
+        lockIconClicked();
+    });
+
+    var bufferOpen = true;
+    function post(data) {
+        /*$.ajax({
+            url: path,
+            data: JSON.stringify(data),
+            dataType: 'json',
+            contentType: 'application/json',
+            method: method || 'post'
+        }).done(function(res) {
+            //console.log("Ajax posted: "+res.status);
+            if (res.status == 'FAIL') {
+                $('.jscolor').addClass('jscolor-error');
+            } else {
+                $('.jscolor').removeClass('jscolor-error');
+            }
+        });*/
+        if (bufferOpen) {
+            //console.log("Posting "+JSON.stringify(data))
+            socket.emit('newcolor', data);
+            bufferOpen = false;
+            setTimeout(function() {
+                bufferOpen = true;
+            }, 100);
+        }
+    }
+
+    function lockIconClicked() {
+        var locked = 'locked.png',
+            unlocked = 'unlocked.png';
+
+        colorsLocked = !colorsLocked;
+        $('#lock-strips').attr('src', '/assets/'+(colorsLocked?locked:unlocked));
+        $('#cc2').prop("disabled", colorsLocked);
+
+        localStorage.setItem("locked", colorsLocked);
+    }
+
+    function componentToHex(c) {
+        var hex = c.toString(16);
+        return hex.length == 1 ? "0" + hex : hex;
+    }
+
+    function rgbToHex(r, g, b) {
+        return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+    }
+
+    function getTextColorForBackground(r, g, b) {
+        var yiq = ((r*299)+(g*587)+(b*114))/1000;
+        //Using a weight system for each color, determine the darkness
+        var bOrW = (yiq >= 128) ? 0 : 1;
+        /*var color = {};
+        color.r = bOrW? 0:255;
+        color.g = bOrW? 0:255;
+        color.b = bOrW? 0:255;
+        return color;*/
+        return bOrW ? '#FFF' : '#000';
+    }
+
+    function colorUpdated(picker) {
+        var color = {};
+        color.r = Math.round(picker.rgb[0]);
+        color.g = Math.round(picker.rgb[1]);
+        color.b = Math.round(picker.rgb[2]);
+        color.strip = [];
+
+        if (colorsLocked) {
+            color.strip = [0, 1];
+            post(color);
+        } else {
+            switch (lastButtonPressedId) {
+                case "cc1":
+                    color.strip = 0;
+                    break;
+                case "cc2":
+                    color.strip = 1;
+                    break;
+                default:
+                    color.strip = 0;
+            }
+            post(color);
+        }
+    }
+
+    function lastButtonPressed(button) {
+        lastButtonPressedId = button;
+    }
+</script>
+</head>
+<body>
+<div id="main">
+    <h1>Choose a color</h1>
+    <button class="jscolor {width: 225, position:'center', valueElement:null, styleElement:null, onFineChange:'colorUpdated(this)'}" id='cc1' onclick="lastButtonPressed(this.id)">Strip 1</button>
+    <img id="lock-strips" onclick="lockIconClicked()" title="Locks the color strips to the same color" src="">
+    <button class="jscolor {width: 225, position:'center', valueElement:null, styleElement:null, onFineChange:'colorUpdated(this)'}" id='cc2' onclick="lastButtonPressed(this.id)">Strip 2</button>
+</div>
+</body>
+</html>

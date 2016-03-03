@@ -1,0 +1,15 @@
+{
+  "name": "fade-server",
+  "version": "0.0.1",
+  "description": "Runs an external-facing server to control a local fadecandy board",
+  "author": "Ben Brown : http://benbrown.science",
+  "homepage": "http://benbrown.science",
+  "dependencies": {
+    "body-parser": "^1.14.2",
+    "express": "^4.13.4",
+    "http": "0.0.0",
+    "socket.io": "^1.4.5",
+    "socket.io-client": "^1.4.5",
+    "ws": "^1.0.1"
+  }
+}
