@@ -5,7 +5,7 @@ var express			= require('express'),
 	WebSocketServer	= require('socket.io'),
 	bodyParser		= require('body-parser');
 
-var port = process.env.PORT || 80;
+var port = process.env.PORT || 8080;
 
 var maxLedsPerStrip		= 64;
 
