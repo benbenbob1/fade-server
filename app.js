@@ -16,6 +16,22 @@ app.use(bodyParser.json());
 
 var clientSocket, serverSocket;
 var tryNum, socketTimeout, maxTries = 7;
+var patternInterval, patternHue = 0;
+var pattern = null;
+
+var rainbowFade = {
+	id: "rainbow-fade",
+	interval: 500, //Every half second
+	function: function() {
+		patternHue += 0.05;
+		if (patternHue > 1.0) {
+			patternHue = 0.0;
+		}
+		console.log("Running rf function, "+patternHue);
+		var col = hslToRgb(patternHue, 0.5, 0.5);
+		writeColor(col[0], col[1], col[2], [0, 1]);
+	}
+}
 
 function socketErr() {
 	clearTimeout(socketTimeout);
@@ -50,13 +66,54 @@ function connectSocket() {
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
 		socket.join('color');
-		socket.emit('color', stripStatus);
+
+		if (pattern !== null) {
+			socket.emit('color', {
+				id: pattern.id
+			});
+		} else {
+			broadcastColor(socket);
+		}
 
 		socket.on('newcolor', function(data) {
-			writeColor(data.r, data.g, data.b, data.strip);
-		})
+			console.log('Rec: '+JSON.stringify(data));
+			if ('strip' in data) {
+				if (pattern != null) {
+					endPattern();
+				}
+				writeColor(data.r, data.g, data.b, data.strip);
+				broadcastColor();
+			} else if ('id' in data) {
+				console.log("Rec... Starting pattern "+data.id);
+				startPattern(data.id);
+			}
+		});
 	});
 
+}
+
+function broadcastColor(socket) {
+	if (socket) {
+		for (var s=0; s<stripStatus.length; s++) {
+			socket.emit('color', {
+				r: stripStatus[s][0],
+				g: stripStatus[s][1],
+				b: stripStatus[s][2],
+				strip: s
+			});
+		}
+	} else {
+		console.log("Should be posting");
+		for (var s=0; s<stripStatus.length; s++) {
+			serverSocket.emit('color', {
+				r: stripStatus[s][0],
+				g: stripStatus[s][1],
+				b: stripStatus[s][2],
+				strip: s
+			});
+		}
+	}
+	
 }
 
 app.use('/js', express.static(__dirname + '/js'));
@@ -98,7 +155,33 @@ function hslToRgb(h, s, l){
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+function startPattern(id) {
+	if (pattern !== null || patternInterval !== null) {
+		endPattern();
+	}
+	var interval = 10;
+	console.log("Starting: "+id)
+	switch (id) {
+		case 'rainbow-fade':
+			pattern = rainbowFade;
+			break;
+		case 'stop':
+			endPattern();
+			break;
+	}
+	serverSocket.emit('color', {id: id});
+	if (pattern && pattern.interval) {
+		patternInterval = setInterval(pattern.function, pattern.interval);
+	}
+}
 
+function endPattern() {
+	console.log("Ending");
+	clearInterval(patternInterval);
+	serverSocket.emit('color', {id: 'stop'});
+	patternInterval = null;
+	pattern = null;
+}
 
 function writeColor(r, g, b, strip) {
 	if (Array.isArray(strip)) {
@@ -109,7 +192,9 @@ function writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
-	serverSocket.to('color').emit('color', stripStatus);
+	console.log("Writing "+JSON.stringify(stripStatus));
+
+	//serverSocket.to('color').emit('color', stripStatus);
 
     var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * stripStatus.length) * 3);
 
