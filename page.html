@@ -23,10 +23,14 @@
     }
 
     h1 {
-    	margin: 30px;
+    	margin: 30px auto 30px auto;
     }
 
-    button:hover {
+    button {
+        cursor: pointer;
+    }
+
+    button.jscolor:hover {
         cursor: pointer;
     	box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
     	margin-top: 3px;
@@ -38,13 +42,11 @@
         margin-bottom: -3px;
     }
 
-    .button-selected {
-        margin-top: 6px;
-        margin-bottom: -6px;
+    button:focus {
+        outline: none;
     }
 
-    .button-selected, button:focus {
-    	outline: none;
+    button.jscolor:focus {
     	box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
     }
 
@@ -55,7 +57,7 @@
         background-color: darkgrey;
     }
 
-    button {
+    button.jscolor {
     	transition: 0.05s linear all;
         border-radius: 5px;
         border: none;
@@ -74,7 +76,6 @@
     }
 
     #lock-strips {
-        cursor: pointer;
         position: relative;
         background-size: contain;
         height: 40px;
@@ -130,37 +131,47 @@
         border-radius: 5px;
         margin-left: 10px;
         margin-right: 10px;
+        transition: 0.2s linear box-shadow;
     }
 
-    #rainbow-fade {
+    .preset-button:hover {
+        box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+    }
+
+    .preset-button.button-selected {
+        border: 3px solid lime;
+        box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+    }
+
+    #pattern-rainbow-fade {
         background: #ff0000; /* Old browsers */
         background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
         background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
         background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
     }
 
-    #rainbow-jump {
-        
+    #pattern-rainbow-jump {
+        background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
     }
 
 </style>
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
-    //var socket = io.connect('http://rpi.student.rit.edu:8080');
-    var socket = io.connect('http://127.0.0.1:8080');
+    var socket = io.connect('http://rpi.student.rit.edu:8080');
+    //var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
 
     socket.on('color', function(data) {
-        console.log('Rec: '+JSON.stringify(data));
+        //console.log('Rec: '+JSON.stringify(data));
         if ('strip' in data) {
             deselectPreset();
             setLocalColor(data.strip, [data.r, data.g, data.b]);
         } else if ('id' in data) {
             deselectPreset();
             if (data.id != 'stop') {
-                $('#'+data.id).addClass('button-selected');
+                $('#pattern-'+data.id).addClass('button-selected');
             } else {
-                console.log("Got stop pattern message");
+                //console.log("Got stop pattern message");
             }
         }
     });
@@ -206,7 +217,7 @@
             }
         });*/
         if (bufferOpen) {
-            console.log('Posting '+JSON.stringify(data))
+            //console.log('Posting '+JSON.stringify(data))
             socket.emit('newcolor', data);
             bufferOpen = false;
             setTimeout(function() {
@@ -235,8 +246,8 @@
     function chosePreset(id) {
         var last = deselectPreset();
         if (id !== last) {
-            $('#'+id).addClass('button-selected');
-            post({id: id});
+            var submission = id.substring("pattern-".length);
+            post({id: submission});
         } else {
             post({id: "stop"});
         }
@@ -306,8 +317,8 @@
     	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc2' onclick='lastButtonPressed(this.id)'>Strip 2</button>
 
         <div class='button-collection'>
-            <button class='preset-button' id='rainbow-fade' onclick='chosePreset(this.id)'></button>
-            <!--<button class='preset-button' id='rainbow-jump' onclick='chosePreset(this.id)'></button>-->
+            <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)'></button>
+            <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
         </div>
 	</div>
 
