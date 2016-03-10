@@ -28,7 +28,7 @@ var patterns = {
 			if (patternHue > 1.0) {
 				patternHue = 0.0;
 			}
-			var col = hslToRgb(patternHue, 1.0, 0.8);
+			var col = hslToRgb(patternHue, 0.5, 1.0);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 		}
 	},
@@ -36,11 +36,11 @@ var patterns = {
 		id: 'rainbow-jump',
 		interval: 800, //Every 4/5 second
 		function: function() {
-			patternHue += 0.05;
+			patternHue += 0.1;
 			if (patternHue > 1.0) {
 				patternHue = 0.0;
 			}
-			var col = hslToRgb(patternHue, 0.5, 0.5);
+			var col = hslToRgb(patternHue, 0.5, 1.0);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 		}
@@ -169,10 +169,13 @@ function hslToRgb(h, s, l){
 }
 
 function startPattern(id) {
-	if (id === 'stop' || pattern !== null || patternInterval !== null) {
+	if (pattern !== null || patternInterval !== null) {
+		endPattern();
+	} else if (id === 'stop') {
 		endPattern();
 		return;
 	}
+	
 	var interval = 10;
 	//console.log("Starting: "+id)
 
