@@ -21,26 +21,27 @@ var pattern = null;
 
 var patterns = {
 	'rainbow-fade': {
-		id: 'rainbow-fade',
-		interval: 500, //Every half second
-		function: function() {
+		'id': 'rainbow-fade',
+		'interval': 500, //Every half second
+		'function': function() {
 			patternHue += 0.05;
 			if (patternHue > 1.0) {
 				patternHue = 0.0;
 			}
-			var col = hslToRgb(patternHue, 0.5, 1.0);
+			var col = hslToRgb(patternHue, 1.0, 0.5);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 		}
 	},
 	'rainbow-jump': {
-		id: 'rainbow-jump',
-		interval: 800, //Every 4/5 second
-		function: function() {
-			patternHue += 0.1;
+		'id': 'rainbow-jump',
+		'interval': 800, //Every 4/5 second
+		'function': function() {
+			patternHue += 0.2;
 			if (patternHue > 1.0) {
 				patternHue = 0.0;
 			}
-			var col = hslToRgb(patternHue, 0.5, 1.0);
+			var col = hslToRgb(patternHue, 1.0, 0.5);
+			console.log("RJ: "+col);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 		}
@@ -143,6 +144,17 @@ server.listen(port, function() {
 	console.log("Fade-server is listening on port "+port);
 });
 
+/**
+ * Converts an HSL color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes h, s, and l are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  l       The lightness
+ * @return  Array           The RGB representation
+ */
 function hslToRgb(h, s, l){
     var r, g, b;
 
@@ -175,7 +187,7 @@ function startPattern(id) {
 		endPattern();
 		return;
 	}
-	
+
 	var interval = 10;
 	//console.log("Starting: "+id)
 
@@ -204,7 +216,7 @@ function writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
-	//console.log("Writing "+JSON.stringify(stripStatus));
+	console.log("Writing "+JSON.stringify(stripStatus));
 
 	//serverSocket.to('color').emit('color', stripStatus);
 
