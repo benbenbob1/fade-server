@@ -25,7 +25,19 @@ var patterns = {
 		'interval': 500, //Every half second
 		'function': function() {
 			patternHue += 0.05;
-			if (patternHue > 1.0) {
+			if (patternHue >= 1.0) {
+				patternHue = 0.0;
+			}
+			var col = hslToRgb(patternHue, 1.0, 0.5);
+			writeColor(col[0], col[1], col[2], [0, 1]);
+		}
+	},
+	'rainbow-fade2': {
+		'id': 'rainbow-fade2',
+		'interval': 200, //Every 1/5 second
+		'function': function() {
+			patternHue += 0.1;
+			if (patternHue >= 1.0) {
 				patternHue = 0.0;
 			}
 			var col = hslToRgb(patternHue, 1.0, 0.5);
@@ -37,11 +49,10 @@ var patterns = {
 		'interval': 800, //Every 4/5 second
 		'function': function() {
 			patternHue += 0.2;
-			if (patternHue > 1.0) {
+			if (patternHue >= 1.0) {
 				patternHue = 0.0;
 			}
 			var col = hslToRgb(patternHue, 1.0, 0.5);
-			console.log("RJ: "+col);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 		}

@@ -150,6 +150,10 @@
         background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
     }
 
+    #pattern-rainbow-fade2 {
+        background-image: repeating-linear-gradient( 90deg, red, orange 10%, yellow 20%, green 30%, blue 40%, purple 50% );
+    }
+
     #pattern-rainbow-jump {
         background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
     }
@@ -157,8 +161,8 @@
 </style>
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
-    //var socket = io.connect('http://rpi.student.rit.edu:8080');
-    var socket = io.connect('http://127.0.0.1:8080');
+    var socket = io.connect('http://rpi.student.rit.edu:8080');
+    //var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
 
     socket.on('color', function(data) {
@@ -318,6 +322,7 @@
 
         <div class='button-collection'>
             <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)'></button>
+            <button class='preset-button' id='pattern-rainbow-fade2' onclick='chosePreset(this.id)'></button>
             <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
         </div>
 	</div>
