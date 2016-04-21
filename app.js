@@ -13,12 +13,22 @@ var stripStatus = [[255,255,255], [255,255,255]];
 
 app.use(bodyParser.json());
 
+function moduleAvailable(name) {
+    try {
+        require.resolve(name);
+        return true;
+    } catch(e){}
+    return false;
+}
+
 
 var clientSocket, serverSocket;
 var tryNum, socketTimeout, maxTries = 7;
 var patternInterval, patternHue = 0;
 var pattern = null;
 
+// Negative pattern interval starts after that many seconds
+// 0 for interval has no delay and no repeat
 var patterns = {
 	'rainbow-fade': {
 		'id': 'rainbow-fade',
@@ -55,6 +65,14 @@ var patterns = {
 			var col = hslToRgb(patternHue, 1.0, 0.5);
 			writeColor(col[0], col[1], col[2], [0, 1]);
 			writeColor(col[0], col[1], col[2], [0, 1]);
+		}
+	},
+	'music-hue': {
+		'id': 'music-hue',
+		'interval': 0, 
+		'function': function() {
+			console.log("This is a test");
+			setTimeout(pattern.function, 0.5);
 		}
 	}
 };
@@ -204,15 +222,22 @@ function startPattern(id) {
 
 	pattern = patterns[id];
 	if (pattern != null) {
-		if (pattern.interval) {
+		if (pattern.interval > 0) {
 			patternInterval = setInterval(pattern.function, pattern.interval);
+		} else if (pattern.interval < 0) {
+			patternInterval = setTimeout(pattern.function, -pattern.interval);
+		} else if (pattern.interval === 0) {
+			patternInterval = 0;
+			pattern.function();
 		}
 	}
 	serverSocket.emit('color', {id: id});
 }
 
 function endPattern() {
-	clearInterval(patternInterval);
+	if (patternInterval > 0)
+		clearInterval(patternInterval);
+
 	serverSocket.emit('color', {id: 'stop'});
 	patternInterval = null;
 	pattern = null;
@@ -227,7 +252,7 @@ function writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
-	console.log("Writing "+JSON.stringify(stripStatus));
+	//console.log("Writing "+JSON.stringify(stripStatus));
 
 	//serverSocket.to('color').emit('color', stripStatus);
 

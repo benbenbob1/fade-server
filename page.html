@@ -124,6 +124,10 @@
         position: relative;
     }
 
+    .preset-button:hover {
+        color: white;
+    }
+
     .preset-button {
         width: 30px;
         height: 30px;
@@ -131,11 +135,17 @@
         border-radius: 5px;
         margin-left: 10px;
         margin-right: 10px;
-        transition: 0.2s linear box-shadow;
+        transition: 0.15s linear all;
+        vertical-align: top;
     }
 
     .preset-button:hover {
+        box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.5);
+    }
+
+    .preset-button:active {
         box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+        border-color: grey;
     }
 
     .preset-button.button-selected {
@@ -158,11 +168,18 @@
         background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
     }
 
+    #pattern-music-hue {
+        background: #ff0000; /* Old browsers */
+        background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
+        background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
+        background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    }
+
 </style>
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
-    var socket = io.connect('http://rpi.student.rit.edu:8080');
-    //var socket = io.connect('http://127.0.0.1:8080');
+    //var socket = io.connect('http://rpi.student.rit.edu:8080');
+    var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
 
     socket.on('color', function(data) {
@@ -324,6 +341,7 @@
             <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)'></button>
             <button class='preset-button' id='pattern-rainbow-fade2' onclick='chosePreset(this.id)'></button>
             <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
+            <button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>
         </div>
 	</div>
 
