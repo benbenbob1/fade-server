@@ -28,12 +28,13 @@ var patternInterval, patternHue = 0;
 var pattern = null;
 
 // Negative pattern interval starts after that many seconds
-// 0 for interval has no delay and no repeat
+// 0 for interval has no delay and no repeat - if it has its own interval
+// it must return it!
 var patterns = {
 	'rainbow-fade': {
-		'id': 'rainbow-fade',
-		'interval': 500, //Every half second
-		'function': function() {
+		id: 'rainbow-fade',
+		interval: 500, //Every half second
+		function: function() {
 			patternHue += 0.05;
 			if (patternHue >= 1.0) {
 				patternHue = 0.0;
@@ -43,9 +44,9 @@ var patterns = {
 		}
 	},
 	'rainbow-fade2': {
-		'id': 'rainbow-fade2',
-		'interval': 200, //Every 1/5 second
-		'function': function() {
+		id: 'rainbow-fade2',
+		interval: 200, //Every 1/5 second
+		function: function() {
 			patternHue += 0.1;
 			if (patternHue >= 1.0) {
 				patternHue = 0.0;
@@ -55,9 +56,9 @@ var patterns = {
 		}
 	},
 	'rainbow-jump': {
-		'id': 'rainbow-jump',
-		'interval': 800, //Every 4/5 second
-		'function': function() {
+		id: 'rainbow-jump',
+		interval: 800, //Every 4/5 second
+		function: function() {
 			patternHue += 0.2;
 			if (patternHue >= 1.0) {
 				patternHue = 0.0;
@@ -68,11 +69,11 @@ var patterns = {
 		}
 	},
 	'music-hue': {
-		'id': 'music-hue',
-		'interval': 0, 
-		'function': function() {
+		id: 'music-hue',
+		interval: 0, 
+		function: function() {
 			console.log("This is a test");
-			setTimeout(pattern.function, 0.5);
+			return setInterval(pattern.function, 0.5);
 		}
 	}
 };
@@ -128,7 +129,6 @@ function connectSocket() {
 				writeColor(data.r, data.g, data.b, data.strip);
 				broadcastColor();
 			} else if ('id' in data) {
-				console.log("Rec... Starting pattern "+data.id);
 				startPattern(data.id);
 			}
 		});
@@ -218,7 +218,7 @@ function startPattern(id) {
 	}
 
 	var interval = 10;
-	//console.log("Starting: "+id)
+	console.log("Starting: "+id)
 
 	pattern = patterns[id];
 	if (pattern != null) {
@@ -227,16 +227,17 @@ function startPattern(id) {
 		} else if (pattern.interval < 0) {
 			patternInterval = setTimeout(pattern.function, -pattern.interval);
 		} else if (pattern.interval === 0) {
-			patternInterval = 0;
-			pattern.function();
+			patternInterval = pattern.function();
 		}
 	}
 	serverSocket.emit('color', {id: id});
 }
 
 function endPattern() {
-	if (patternInterval > 0)
+	if (patternInterval != null) {
+		console.log("Stopping pattern");
 		clearInterval(patternInterval);
+	}
 
 	serverSocket.emit('color', {id: 'stop'});
 	patternInterval = null;
