@@ -111,8 +111,7 @@ function connectSocket() {
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
 		socket.join('color');
-
-		if (pattern !== null) {
+		if (pattern != null) {
 			socket.emit('color', {
 				id: pattern.id
 			});
