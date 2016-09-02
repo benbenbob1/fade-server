@@ -5,6 +5,8 @@ var express			= require('express'),
 	WebSocketServer	= require('socket.io'),
 	bodyParser		= require('body-parser');
 
+var patterns 		= require('./js/patterns');
+
 var port = process.env.PORT || 8080;
 
 var maxLedsPerStrip		= 64;
@@ -26,57 +28,7 @@ var clientSocket, serverSocket;
 var tryNum, socketTimeout, maxTries = 7;
 var patternInterval, patternHue = 0;
 var pattern = null;
-
-// Negative pattern interval starts after that many seconds
-// 0 for interval has no delay and no repeat - if it has its own interval
-// it must return it!
-var patterns = {
-	'rainbow-fade': {
-		id: 'rainbow-fade',
-		interval: 500, //Every half second
-		function: function() {
-			patternHue += 0.05;
-			if (patternHue >= 1.0) {
-				patternHue = 0.0;
-			}
-			var col = hslToRgb(patternHue, 1.0, 0.5);
-			writeColor(col[0], col[1], col[2], [0, 1]);
-		}
-	},
-	'rainbow-fade2': {
-		id: 'rainbow-fade2',
-		interval: 200, //Every 1/5 second
-		function: function() {
-			patternHue += 0.1;
-			if (patternHue >= 1.0) {
-				patternHue = 0.0;
-			}
-			var col = hslToRgb(patternHue, 1.0, 0.5);
-			writeColor(col[0], col[1], col[2], [0, 1]);
-		}
-	},
-	'rainbow-jump': {
-		id: 'rainbow-jump',
-		interval: 800, //Every 4/5 second
-		function: function() {
-			patternHue += 0.2;
-			if (patternHue >= 1.0) {
-				patternHue = 0.0;
-			}
-			var col = hslToRgb(patternHue, 1.0, 0.5);
-			writeColor(col[0], col[1], col[2], [0, 1]);
-			writeColor(col[0], col[1], col[2], [0, 1]);
-		}
-	},
-	'music-hue': {
-		id: 'music-hue',
-		interval: 0, 
-		function: function() {
-			console.log("This is a test");
-			return setInterval(pattern.function, 0.5);
-		}
-	}
-};
+var chosenColors = [];
 
 function socketErr() {
 	clearTimeout(socketTimeout);
@@ -100,6 +52,7 @@ function socketErr() {
 
 function connectSocket() {
 	var addr = 'ws://127.0.0.1:7890';
+	//var addr = 'ws://rpi.student.rit.edu:7890';
 	console.log("Connecting websocket to "+addr)
 	clientSocket = WebSocketClient(addr);
 	clientSocket.on('open', function() {
@@ -120,15 +73,22 @@ function connectSocket() {
 		}
 
 		socket.on('newcolor', function(data) {
-			//console.log('Rec: '+JSON.stringify(data));
+			console.log('Rec: '+JSON.stringify(data));
 			if ('strip' in data) {
 				if (pattern != null) {
 					endPattern();
 				}
+				chosenColors[data.strip] = [data.r, data.g, data.b];
 				writeColor(data.r, data.g, data.b, data.strip);
 				broadcastColor();
 			} else if ('id' in data) {
 				startPattern(data.id);
+			} else if ('config' in data) {
+				if (pattern && pattern.config && pattern.config[data.config]) {
+					var me = {};
+					me.pattern = pattern;
+					pattern.config[data.config].onchange.call(me, data.value);
+				}
 			}
 		});
 	});
@@ -216,13 +176,28 @@ function startPattern(id) {
 		return;
 	}
 
-	var interval = 10;
 	console.log("Starting: "+id)
 
 	pattern = patterns[id];
 	if (pattern != null) {
 		if (pattern.interval > 0) {
-			patternInterval = setInterval(pattern.function, pattern.interval);
+			var me = {};
+			me.chosenColors = chosenColors;
+			me.patternHue = patternHue;
+			me.writeColor = writeColor;
+			me.hslToRgb = hslToRgb;
+			me.interval = pattern.interval;
+			var justStarted = true;
+			callPattern = function() {
+				if (!patternInterval && !justStarted) { //breaking out is hard to do...
+					return;
+				}
+				pattern.interval = me.interval;
+				justStarted = false;
+				pattern.function.call(me);
+				patternInterval = setTimeout(callPattern, pattern.interval);
+			}
+			callPattern();
 		} else if (pattern.interval < 0) {
 			patternInterval = setTimeout(pattern.function, -pattern.interval);
 		} else if (pattern.interval === 0) {
@@ -235,7 +210,7 @@ function startPattern(id) {
 function endPattern() {
 	if (patternInterval != null) {
 		console.log("Stopping pattern");
-		clearInterval(patternInterval);
+		clearTimeout(patternInterval);
 	}
 
 	serverSocket.emit('color', {id: 'stop'});
@@ -291,3 +266,4 @@ function writeColor(r, g, b, strip) {
 
     return true;
 }
+

@@ -1,0 +1,225 @@
+html {
+    height: 95%;
+}
+
+body {
+    background: #666;
+    color: #ddd;
+    font-size: 15px;
+    font-family: 'Montserrat', sans-serif;
+    text-align: center;
+    height: 100%;
+    overflow: hidden;
+}
+
+h1 {
+	margin: 30px auto 30px auto;
+}
+
+button {
+    cursor: pointer;
+}
+
+button.jscolor.offline:hover {
+    cursor: default;
+    margin-top: 3px;
+    margin-bottom: -2px;
+}
+
+button.jscolor:hover {
+    cursor: pointer;
+	box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
+	margin-top: 3px;
+    margin-bottom: -3px;
+}
+
+.jscolor:focus {
+    margin-top: 3px;
+    margin-bottom: -3px;
+}
+
+button:focus {
+    outline: none;
+}
+
+button.jscolor:focus {
+	box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+}
+
+button:disabled {
+    box-shadow: none;
+    margin-top: 3px;
+    margin-bottom: -2px;
+    background-color: darkgrey;
+}
+
+button.jscolor {
+	transition: 0.05s linear all;
+    border-radius: 5px;
+    border: none;
+    box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
+}
+
+button.jscolor.offline {
+    box-shadow: 0px 6px 0px 0px rgba(199, 46, 42, 0.75);
+}
+
+#main {
+    position: relative;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+}
+
+.flexible-space {
+	width: 70px;
+}
+
+#lock-strips {
+    position: relative;
+    background-size: contain;
+    height: 40px;
+    width: 40px;
+    margin: 36px auto 30px auto;
+    cursor: pointer;
+}
+
+.strips {
+	max-width: 420px;
+    min-width: 220px;
+	flex-grow: 1;
+}
+
+.jscolor:first-child {
+	z-index: 1;
+}
+
+.jscolor:nth-child(n+2) {
+	z-index: 0;
+    width: 2
+}
+
+.jscolor {
+    position: relative;
+    max-width: 80%;
+    height: 60px;
+    width: 280px;
+    text-align: center;
+    font-size: 30px;
+    font-family: 'Montserrat', sans-serif;
+    transition: 0.4s ease-in-out top;
+}
+
+.jscolor-error {
+    box-shadow: 0px 10px 0px 0px rgba(204,50,50,0.75);
+}
+
+.strip-button {
+
+}
+
+.button-collection {
+    display: block;
+    width: 100%;
+    top: 60px;
+    position: relative;
+}
+
+.preset-button:hover {
+    color: white;
+}
+
+.preset-button {
+    width: 30px;
+    height: 30px;
+    border: 3px solid white;
+    border-radius: 5px;
+    margin-left: 10px;
+    margin-right: 10px;
+    transition: 0.15s linear all;
+    vertical-align: top;
+    padding: 0;
+}
+
+.preset-button:hover {
+    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.5);
+}
+
+.preset-button:active {
+    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+    border-color: grey;
+}
+
+.preset-button.button-selected {
+    border: 3px solid lime;
+    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+}
+
+#pattern-rainbow-fade {
+    background: #ff0000; /* Old browsers */
+    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
+#pattern-rainbow-fade2 {
+    background-image: repeating-linear-gradient( 90deg, red, orange 10%, yellow 20%, green 30%, blue 40%, purple 50% );
+}
+
+#pattern-rainbow-fade3-top {
+    height: 50%;
+    background-image: repeating-linear-gradient( 90deg, red, orange 20%, yellow 40%, green 60%, blue 80%, purple 100% );
+}
+
+#pattern-rainbow-fade3-bottom {
+    height: 50%;
+    background-image: repeating-linear-gradient( 90deg, purple, blue 20%, green 40%, yellow 60%, orange 80%, red 100% );
+}
+
+#pattern-rainbow-jump {
+    background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
+}
+
+#pattern-switch {
+    background-image: repeating-linear-gradient( 90deg, white, white 50%, black 50%, black 100% );
+}
+
+#pattern-music-hue {
+    background: #ff0000; /* Old browsers */
+    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
+#config-space {
+    margin-top: 50px;
+    display: block;
+    width: 100%;
+    top: 60px;
+    position: relative;
+}
+
+.config-item-row {
+    width: 65%;
+    margin: 0 auto;
+}
+
+.config-item-row input {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 10px 0px;
+}
+
+label.config-item:after {
+    clear: both;
+}
+
+.config-item.item-left {
+    float: left;
+}
+
+.config-item.item-right {
+    float: right;
+}
+
