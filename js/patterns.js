@@ -31,9 +31,9 @@ var patterns = {
 	},
 	'rainbow-fade3': {
 		id: 'rainbow-fade3',
-		interval: 200, //Every 1/5 second
+		interval: 500, //Every 1/5 second
 		function: function() {
-			this.patternHue += 0.1;
+			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
@@ -70,6 +70,12 @@ var patterns = {
 			}
 			for (var strip=0; strip<count; strip++) {
 				var newStrip = (strip + this.patternHue) % count;
+				this.writeColor(
+					this.chosenColors[newStrip][0],
+					this.chosenColors[newStrip][1],
+					this.chosenColors[newStrip][2],
+					strip
+				);
 				this.writeColor(
 					this.chosenColors[newStrip][0],
 					this.chosenColors[newStrip][1],
