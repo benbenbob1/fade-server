@@ -30,6 +30,11 @@ var patternInterval, patternHue = 0;
 var pattern = null;
 var chosenColors = [];
 
+function log(text) {
+	process.stdout.write(text+"\n");
+	//console.warn(text);
+}
+
 function socketErr() {
 	clearTimeout(socketTimeout);
 	if (tryNum > maxTries) {
@@ -63,6 +68,7 @@ function connectSocket() {
 
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
+		log("Socket connected "+socket);
 		socket.join('color');
 		if (pattern != null) {
 			socket.emit('color', {
@@ -73,20 +79,20 @@ function connectSocket() {
 		}
 
 		socket.on('newcolor', function(data) {
-			console.log('Rec: '+JSON.stringify(data));
+			log('Rec: '+JSON.stringify(data));
 			if ('strip' in data) {
 				if (pattern != null) {
 					endPattern();
 				}
-				chosenColors[data.strip] = [data.r, data.g, data.b];
 				writeColor(data.r, data.g, data.b, data.strip);
 				broadcastColor();
 			} else if ('id' in data) {
 				startPattern(data.id);
 			} else if ('config' in data) {
 				if (pattern && pattern.config && pattern.config[data.config]) {
-					var me = {};
-					me.pattern = pattern;
+					var me = {
+						pattern: pattern
+					};
 					pattern.config[data.config].onchange.call(me, data.value);
 				}
 			}
@@ -131,6 +137,17 @@ server.listen(port, function() {
 	connectSocket();
 	console.log("Fade-server is listening on port "+port);
 });
+
+function getColors() {
+	var colorArr = [];
+	for (var s=0; s<stripStatus.length; s++) {
+		colorArr.push([
+			stripStatus[s][0],
+			stripStatus[s][1],
+			stripStatus[s][2],
+		]);
+	}
+}
 
 /**
  * Converts an HSL color value to RGB. Conversion formula
@@ -181,12 +198,14 @@ function startPattern(id) {
 	pattern = patterns[id];
 	if (pattern != null) {
 		if (pattern.interval > 0) {
-			var me = {};
-			me.chosenColors = chosenColors;
-			me.patternHue = patternHue;
-			me.writeColor = writeColor;
-			me.hslToRgb = hslToRgb;
-			me.interval = pattern.interval;
+			var me = {
+				getColors: getColors,
+				patternHue: patternHue,
+				writeColor: writeColor,
+				hslToRgb: hslToRgb,
+				interval: pattern.interval,
+				options: pattern.options
+			};
 			var justStarted = true;
 			callPattern = function() {
 				if (!patternInterval && !justStarted) { //breaking out is hard to do...
@@ -227,7 +246,9 @@ function writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
-	//console.log("Writing "+JSON.stringify(stripStatus));
+	//TODO: removeme
+	console.log("Writing "+JSON.stringify(stripStatus));
+	return;
 
 	//serverSocket.to('color').emit('color', stripStatus);
 

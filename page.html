@@ -11,8 +11,8 @@
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
     var buttons = null;
-    var socket = io.connect('http://rpi.student.rit.edu:8080');
-    //var socket = io.connect('http://127.0.0.1:8080');
+    //var socket = io.connect('http://rpi.student.rit.edu:8080');
+    var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
     var reachable = false;
 
@@ -254,7 +254,6 @@
             elem.id = index;
             
             if (option.input.type == "range") {
-                elem.toChange = (option.label.right && option.label.right.id) || null;
                 if (option.input.updateOnChange) {
                     elem.addEventListener("input", function(event) {
                         rangeAdjusted(event.target, event.target.toChange);
@@ -269,6 +268,10 @@
                     elem.setAttribute("min", option.input.range.min);
                     elem.setAttribute("max", option.input.range.max);
                 }
+            } else if (option.input.type == "checkbox") {
+                elem.addEventListener("change", function(event) {
+                    inputSet(event.target);
+                });
             }
 
             if (option.input.startValue != null) {
