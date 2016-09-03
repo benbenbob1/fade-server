@@ -52,7 +52,7 @@ var __configs = {
 	    onchange: function(value) {
 	    	this.pattern.interval = Math.floor(1/(value/100) * this.pattern.options.startInterval);
 	    }
-	}
+	},
 	brightness: {
         label: {
             left: {
