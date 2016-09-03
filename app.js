@@ -57,8 +57,8 @@ function socketErr() {
 }
 
 function connectSocket() {
-	//var addr = 'ws://127.0.0.1:7890';
-	var addr = 'ws://rpi.student.rit.edu:7890';
+	var addr = 'ws://127.0.0.1:7890';
+	//var addr = 'ws://rpi.student.rit.edu:7890';
 	console.log("Connecting websocket to "+addr)
 	clientSocket = WebSocketClient(addr);
 	clientSocket.on('open', function() {

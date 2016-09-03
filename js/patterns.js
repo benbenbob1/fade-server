@@ -264,7 +264,7 @@ var patterns = {
 		interval: 500, //Every half second
 		options: {
 			startInterval: 500,
-			fade: false
+			fade: true
 		},
 		function: function() {
 			var strips = [];
