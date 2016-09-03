@@ -241,7 +241,6 @@ function writeColors(colors) {
 	for (var i=0; i<colors.length; i++) {
 		stripStatus[i] = colors[i];
 	}
-	console.log("Sending", stripStatus);
 	sendPacket();
 }
 
