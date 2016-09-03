@@ -31,7 +31,7 @@ var pattern = null;
 var chosenColors = [];
 
 function log(text) {
-	process.stdout.write(text+"\n");
+	//process.stdout.write(text+"\n");
 	//console.warn(text);
 }
 
