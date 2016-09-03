@@ -141,7 +141,7 @@
     }
 
     function chosePreset(id) {
-        console.log("CP: ", id, reachable);
+        console.log("Preset: "+ id);
         if (!reachable) {
             return;
         }
@@ -212,17 +212,23 @@
     */
 
     function rangeAdjusted(item, toUpdate) {
-        console.log(item, toUpdate);
         if (toUpdate && toUpdate.length>0) {
             var elem = document.getElementById(toUpdate);
             elem.innerText = item.value + "%";
         }
     }
 
-    function inputSet(element) {
+    function rangeSet(element) {
         post({
             config: element.id,
             value: element.value
+        });
+    }
+
+    function checkboxSet(element) {
+        post({
+            config: element.id,
+            value: element.checked
         });
     }
 
@@ -253,7 +259,6 @@
             }
 
             elem.id = index;
-            
             elem.toChange = (option.label.right && option.label.right.id) || null;
             
             if (option.input.type == "range") {
@@ -264,7 +269,7 @@
                 }
 
                 elem.addEventListener("change", function(event) {
-                    inputSet(event.target);
+                    rangeSet(event.target);
                 });
 
                 if (option.input.range != null) {
@@ -273,7 +278,7 @@
                 }
             } else if (option.input.type == "checkbox") {
                 elem.addEventListener("change", function(event) {
-                    inputSet(event.target);
+                    checkboxSet(event.target);
                 });
             }
 

@@ -4,13 +4,39 @@
 // Current selected colors are located at this.chosenColors[strip] = [r, g, b]
 // this.patternHue = current hue
 
+var __speedConfig = {
+    label: {
+        left: {
+            id: "",
+            text: "Speed"
+        },
+        right: {
+            id: "config-speed-input-percent",
+            text: "100%"
+        }
+    },
+    input: {
+        type: "range",
+        updateOnChange: true,
+        startValue: 100,
+        range: {
+            min: 50,
+            max: 200
+        }
+    },
+    onchange: function(value) {
+    	this.pattern.interval = Math.floor(1/(value/100) * this.pattern.options.startInterval);
+    }
+}
+
 var patterns = {
 	'rainbow-fade': {
 		id: 'rainbow-fade',
 		interval: 500, //Every half second
 		options: {
 			saturation: 1.0,
-			brightness: 0.5
+			brightness: 0.5,
+			startInterval: 500
 		},
 		function: function() {
 			this.patternHue += 0.05;
@@ -18,9 +44,14 @@ var patterns = {
 				this.patternHue = 0.0;
 			}
 			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
-			this.writeColor(col[0], col[1], col[2], [0, 1]);
+			//this.writeColor(col[0], col[1], col[2], [0, 1]);
+			this.writeColor([
+				[col[0], col[1], col[2]],
+				[col[0], col[1], col[2]]
+			]);
 		},
 		config: {
+			"config-speed": __speedConfig,
 			"config-brightness": {
                 label: {
                     left: {
@@ -80,21 +111,35 @@ var patterns = {
 				this.patternHue = 0.0;
 			}
 			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
-			this.writeColor(col[0], col[1], col[2], [0, 1]);
+			this.writeColor([
+				[col[0], col[1], col[2]],
+				[col[0], col[1], col[2]]
+			]);
+			//this.writeColor(col[0], col[1], col[2], [0, 1]);
 		}
 	},
 	'rainbow-fade3': {
 		id: 'rainbow-fade3',
 		interval: 500, //Every 1/5 second
+		options: {
+			startInterval: 500
+		},
 		function: function() {
 			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col1 = this.hslToRgb(this.patternHue, 1.0, 0.5);
-			var col2 = this.hslToRgb(1.0 - this.patternHue, 1.0, 0.5);
-			this.writeColor(col1[0], col1[1], col1[2], 0);
-			this.writeColor(col2[0], col2[1], col2[2], 1);
+			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
+			//var col2 = this.hslToRgb(1.0 - this.patternHue, 1.0, 0.5);
+			//this.writeColor(col1[0], col1[1], col1[2], 0);
+			//this.writeColor(col2[0], col2[1], col2[2], 1);
+			this.writeColor([
+				[col[0], col[1], col[2]],
+				[255-col[0], 255-col[1], 255-col[2]]
+			]);
+		},
+		config: {
+			"config-speed": __speedConfig
 		}
 	},
 	'rainbow-jump': {
@@ -152,30 +197,7 @@ var patterns = {
 			}
 		},
 		config: {
-			"config-speed": {
-                label: {
-                    left: {
-                        id: "",
-                        text: "Speed"
-                    },
-                    right: {
-                        id: "config-speed-input-percent",
-                        text: "100%"
-                    }
-                },
-                input: {
-                    type: "range",
-                    updateOnChange: true,
-                    startValue: 100,
-                    range: {
-                        min: 50,
-                        max: 200
-                    }
-                },
-                onchange: function(value) {
-                	this.pattern.interval = (value/100) * this.pattern.options.startInterval;
-                }
-            },
+			"config-speed": __speedConfig,
             "config-fade-tween": {
                 label: {
                     left: {
@@ -189,7 +211,7 @@ var patterns = {
                     startValue: false
                 },
                 onchange: function(value) {
-                	this.options.fade = value;
+                	this.pattern.options.fade = value;
                 }
             }
 		}

@@ -32,7 +32,6 @@ var chosenColors = [];
 
 function log(text) {
 	//process.stdout.write(text+"\n");
-	//console.warn(text);
 }
 
 function socketErr() {
@@ -84,7 +83,7 @@ function connectSocket() {
 				if (pattern != null) {
 					endPattern();
 				}
-				writeColor(data.r, data.g, data.b, data.strip);
+				_writeColor(data.r, data.g, data.b, data.strip);
 				broadcastColor();
 			} else if ('id' in data) {
 				startPattern(data.id);
@@ -147,6 +146,7 @@ function getColors() {
 			stripStatus[s][2],
 		]);
 	}
+	return colorArr;
 }
 
 /**
@@ -201,9 +201,8 @@ function startPattern(id) {
 			var me = {
 				getColors: getColors,
 				patternHue: patternHue,
-				writeColor: writeColor,
+				writeColor: writeColors,
 				hslToRgb: hslToRgb,
-				interval: pattern.interval,
 				options: pattern.options
 			};
 			var justStarted = true;
@@ -211,7 +210,7 @@ function startPattern(id) {
 				if (!patternInterval && !justStarted) { //breaking out is hard to do...
 					return;
 				}
-				pattern.interval = me.interval;
+				log(pattern.interval);
 				justStarted = false;
 				pattern.function.call(me);
 				patternInterval = setTimeout(callPattern, pattern.interval);
@@ -237,7 +236,14 @@ function endPattern() {
 	pattern = null;
 }
 
-function writeColor(r, g, b, strip) {
+// [[r,g,b], [r,g,b]]
+function writeColors(colors) {
+	for (var i=0; i<colors.length; i++) {
+		stripStatus[i] = colors[i];
+	}
+}
+
+function _writeColor(r, g, b, strip) {
 	if (Array.isArray(strip)) {
 		for (var i=0; i<strip.length; i++) {
 			stripStatus[strip[i]] = [r,g,b];

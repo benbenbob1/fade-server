@@ -213,6 +213,7 @@ button.jscolor.offline {
 
 .config-item-row input[type="checkbox"] {
     width: 13px;
+    height: 13px;
     float: right;
     margin-top: 4px;
 }
