@@ -212,6 +212,7 @@
     */
 
     function rangeAdjusted(item, toUpdate) {
+        console.log(item, toUpdate);
         if (toUpdate && toUpdate.length>0) {
             var elem = document.getElementById(toUpdate);
             elem.innerText = item.value + "%";
@@ -252,6 +253,8 @@
             }
 
             elem.id = index;
+            
+            elem.toChange = (option.label.right && option.label.right.id) || null;
             
             if (option.input.type == "range") {
                 if (option.input.updateOnChange) {

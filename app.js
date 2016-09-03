@@ -246,9 +246,8 @@ function writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
-	//TODO: removeme
-	console.log("Writing "+JSON.stringify(stripStatus));
-	return;
+	//console.log("Writing "+JSON.stringify(stripStatus));
+	//return;
 
 	//serverSocket.to('color').emit('color', stripStatus);
 
