@@ -20,8 +20,8 @@ var __speedConfig = {
         updateOnChange: true,
         startValue: 100,
         range: {
-            min: 50,
-            max: 200
+            min: 10,
+            max: 500
         }
     },
     onchange: function(value) {
@@ -151,8 +151,10 @@ var patterns = {
 				this.patternHue = 0.0;
 			}
 			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
-			this.writeColor(col[0], col[1], col[2], [0, 1]);
-			this.writeColor(col[0], col[1], col[2], [0, 1]);
+			this.writeColor([
+				[col[0], col[1], col[2]],
+				[col[0], col[1], col[2]]
+			]);
 		}
 	},
 	'switch': {
@@ -170,6 +172,7 @@ var patterns = {
 					[0, 0, 0]
 				];
 			}
+			console.log("Starting", curColors);
 			var count = curColors.length;
 			var max = count - 1;
 			var switched = true;
@@ -178,22 +181,15 @@ var patterns = {
 			} else {
 				this.patternHue += 1.0;
 			}
+			var colors = [];
 			for (var strip=0; strip<count; strip++) {
 				var newStrip = (strip + this.patternHue) % count;
-				this.writeColor(
-					curColors[newStrip][0],
-					curColors[newStrip][1],
-					curColors[newStrip][2],
-					strip
-				);
-				if (!this.options.fade) {
-					this.writeColor(
-						curColors[newStrip][0],
-						curColors[newStrip][1],
-						curColors[newStrip][2],
-						strip
-					);
-				}
+				colors.push([curColors[newStrip][0], curColors[newStrip][1], curColors[newStrip][2]]);
+			}
+			console.log("Setting", colors);
+			this.writeColor(colors);
+			if (!this.options.fade) {
+				this.writeColor(colors);
 			}
 		},
 		config: {
