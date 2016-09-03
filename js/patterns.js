@@ -53,6 +53,22 @@ var __configs = {
 	    	this.pattern.interval = Math.floor(1/(value/100) * this.pattern.options.startInterval);
 	    }
 	},
+	fade: {
+        label: {
+            left: {
+                id: "",
+                text: "Fade"
+            }
+        },
+        input: {
+            type: "checkbox",
+            updateOnChange: false,
+            startValue: false
+        },
+        onchange: function(value) {
+        	this.pattern.options.fade = value;
+        }
+    },
 	brightness: {
         label: {
             left: {
@@ -118,7 +134,6 @@ var patterns = {
 				this.patternHue = 0.0;
 			}
 			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
-			//this.writeColor(col[0], col[1], col[2], [0, 1]);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
@@ -143,7 +158,7 @@ var patterns = {
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
+			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
@@ -169,10 +184,7 @@ var patterns = {
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
-			//var col2 = this.hslToRgb(1.0 - this.patternHue, 1.0, 0.5);
-			//this.writeColor(col1[0], col1[1], col1[2], 0);
-			//this.writeColor(col2[0], col2[1], col2[2], 1);
+			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[255-col[0], 255-col[1], 255-col[2]]
@@ -197,7 +209,7 @@ var patterns = {
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, 1.0, 0.5);
+			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
@@ -244,22 +256,44 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed_fast,
-            "config-fade-tween": {
-                label: {
-                    left: {
-                        id: "",
-                        text: "Fade"
-                    }
-                },
-                input: {
-                    type: "checkbox",
-                    updateOnChange: false,
-                    startValue: false
-                },
-                onchange: function(value) {
-                	this.pattern.options.fade = value;
-                }
-            }
+            "config-fade-tween": __configs.fade
+		}
+	},
+	'random': {
+		id: 'random',
+		interval: 500, //Every half second
+		options: {
+			startInterval: 500,
+			fade: false
+		},
+		function: function() {
+			var strips = [];
+			var stripCount = 2;
+			function randColor() {
+				function color() {
+					return Math.floor(Math.random() * 255);
+				}
+				return [
+					color(),
+					color(),
+					color()
+				];
+			}
+			for (var s=0; s<stripCount; s++) {
+				var strip = [];
+				for (var x=0; x<30; x++) {
+					strip.push(randColor());
+				}
+				strips.push(strip);
+			}
+			this.writeLEDs(strips);
+			if (!this.options.fade) {
+				this.writeLEDs(strips);
+			}
+		},
+		config: {
+			"config-speed": __configs.speed,
+            "config-fade-tween": __configs.fade
 		}
 	},
 	'music-hue': {

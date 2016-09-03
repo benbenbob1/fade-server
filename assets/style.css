@@ -191,6 +191,13 @@ button.jscolor.offline {
     background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
 }
 
+#pattern-random {
+    background: #ff0000; /* Old browsers */
+    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
 #config-space {
     margin-top: 50px;
     display: block;

@@ -9,7 +9,9 @@ var patterns 		= require('./js/patterns');
 
 var port = process.env.PORT || 8080;
 
-var maxLedsPerStrip		= 64;
+var maxLedsPerStrip	= 64;
+var ledsPerStrip 	= 30;
+var numStrips		= 2;
 
 var stripStatus = [[255,255,255], [255,255,255]];
 
@@ -55,8 +57,8 @@ function socketErr() {
 }
 
 function connectSocket() {
-	var addr = 'ws://127.0.0.1:7890';
-	//var addr = 'ws://rpi.student.rit.edu:7890';
+	//var addr = 'ws://127.0.0.1:7890';
+	var addr = 'ws://rpi.student.rit.edu:7890';
 	console.log("Connecting websocket to "+addr)
 	clientSocket = WebSocketClient(addr);
 	clientSocket.on('open', function() {
@@ -202,6 +204,7 @@ function startPattern(id) {
 				getColors: getColors,
 				patternHue: patternHue,
 				writeColor: writeColors,
+				writeLEDs: writeLEDs,
 				hslToRgb: hslToRgb,
 				options: pattern.options
 			};
@@ -210,7 +213,6 @@ function startPattern(id) {
 				if (!patternInterval && !justStarted) { //breaking out is hard to do...
 					return;
 				}
-				log(pattern.interval);
 				justStarted = false;
 				pattern.function.call(me);
 				patternInterval = setTimeout(callPattern, pattern.interval);
@@ -238,14 +240,28 @@ function endPattern() {
 
 // [[r,g,b], [r,g,b]]
 function writeColors(colors) {
-	for (var i=0; i<colors.length; i++) {
-		stripStatus[i] = colors[i];
+	var leds = [];
+	for (var strip = 0; strip < colors.length; strip++) {
+		var aStrip = [];
+		for (var led = 0; led < ledsPerStrip; led++) {
+			aStrip.push([
+				colors[strip][0],
+				colors[strip][1],
+				colors[strip][2],
+			]);
+		}
+		leds.push(aStrip);
 	}
-	sendPacket();
+	/*for (var i=0; i<colors.length; i++) {
+		stripStatus[i] = colors[i];
+	}*/
+	writeLEDs(leds);
 }
 
-function sendPacket() {
-	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * stripStatus.length) * 3);
+//[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
+function writeLEDs(arr) {
+	//log("Writing leds to "+ arr.length +" strips");
+	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * arr.length) * 3);
 
     if (clientSocket.readyState != 1 ) { //if socket is not open
         // The server connection isn't open. Nothing to do.
@@ -266,14 +282,15 @@ function sendPacket() {
     // Dest position in our packet. Start right after the header.
     var dest = 4;
 
-    // Sample the center pixel of each LED
-    var stripNo = 0;
-    for (var led = 0; led < (maxLedsPerStrip * stripStatus.length); led++) {
-    	stripNo = Math.floor(led / maxLedsPerStrip);
-
-        packet[dest++] = stripStatus[stripNo][0];
-        packet[dest++] = stripStatus[stripNo][1];
-        packet[dest++] = stripStatus[stripNo][2];
+    for (var strip = 0; strip < arr.length; strip++) {
+    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
+    	for (var led = 0; led < arr[strip].length; led++) {
+    		packet[dest++] = arr[strip][led][0];
+    		packet[dest++] = arr[strip][led][1];
+    		packet[dest++] = arr[strip][led][2];
+    	}
+    	var toGo = maxLedsPerStrip - led;
+    	dest += (toGo*3);
     }
     
     clientSocket.send(packet.buffer);
@@ -320,7 +337,6 @@ function _writeColor(r, g, b, strip) {
     var stripNo = 0;
     for (var led = 0; led < (maxLedsPerStrip * stripStatus.length); led++) {
     	stripNo = Math.floor(led / maxLedsPerStrip);
-
         packet[dest++] = stripStatus[stripNo][0];
         packet[dest++] = stripStatus[stripNo][1];
         packet[dest++] = stripStatus[stripNo][2];

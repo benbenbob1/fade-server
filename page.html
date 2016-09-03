@@ -11,8 +11,8 @@
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
     var buttons = null;
-    var socket = io.connect('http://rpi.student.rit.edu:8080');
-    //var socket = io.connect('http://127.0.0.1:8080');
+    //var socket = io.connect('http://rpi.student.rit.edu:8080');
+    var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
     var reachable = false;
 
@@ -148,11 +148,7 @@
         var last = deselectPreset();
         if (id !== last) {
             var submission = id.substring("pattern-".length);
-            if (patterns[submission].config) {
-                setupConfig(patterns[submission].config);
-            } else {
-                setupConfig();
-            }
+            setupConfig(patterns[submission].config || null);
             post({id: submission});
         } else {
             setupConfig();
@@ -291,6 +287,10 @@
             rowElem.appendChild(elem);
             container.appendChild(rowElem);
         }
+        if (!$(container).is(":visible")) {
+            $(container).slideDown();
+        }
+        console.log("Done");
     }
 </script>
 </head>
@@ -315,6 +315,7 @@
             </button>
             <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
             <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
+            <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)'>?</button>
             <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)'></button>
         </div>
 
