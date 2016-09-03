@@ -241,6 +241,45 @@ function writeColors(colors) {
 	for (var i=0; i<colors.length; i++) {
 		stripStatus[i] = colors[i];
 	}
+	console.log("Sending", stripStatus);
+	sendPacket();
+}
+
+function sendPacket() {
+	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * stripStatus.length) * 3);
+
+    if (clientSocket.readyState != 1 ) { //if socket is not open
+        // The server connection isn't open. Nothing to do.
+        console.log("socket err! attempting to reconnect...");
+        tryNum = 1;
+        connectSocket();
+        return false;
+    }
+
+    if (clientSocket.bufferedAmount > packet.length) {
+        // The network is lagging, and we still haven't sent the previous frame.
+        // Don't flood the network, it will just make us laggy.
+        // If fcserver is running on the same computer, it should always be able
+        // to keep up with the frames we send, so we shouldn't reach this point.
+        return;
+    }
+
+    // Dest position in our packet. Start right after the header.
+    var dest = 4;
+
+    // Sample the center pixel of each LED
+    var stripNo = 0;
+    for (var led = 0; led < (maxLedsPerStrip * stripStatus.length); led++) {
+    	stripNo = Math.floor(led / maxLedsPerStrip);
+
+        packet[dest++] = stripStatus[stripNo][0];
+        packet[dest++] = stripStatus[stripNo][1];
+        packet[dest++] = stripStatus[stripNo][2];
+    }
+    
+    clientSocket.send(packet.buffer);
+
+    return true;
 }
 
 function _writeColor(r, g, b, strip) {
