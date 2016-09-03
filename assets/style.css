@@ -192,10 +192,8 @@ button.jscolor.offline {
 }
 
 #pattern-random {
-    background: #ff0000; /* Old browsers */
-    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
-    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
-    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    color: white;
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAATklEQVQYV2O0O3X+PwMDA8MhM0NGEI0LMBKtEJsJD27YgW1R0DgEtwWrdUQrxGYLY8V5iDUdhghrKFOITfenmXFgW/jSF+H3DNEKsdkCAO99IAvSBrFVAAAAAElFTkSuQmCC) repeat;
 }
 
 #config-space {

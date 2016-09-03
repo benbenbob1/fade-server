@@ -293,7 +293,23 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
-            "config-fade-tween": __configs.fade
+            "config-fade-tween": {
+		        label: {
+		            left: {
+		                id: "",
+		                text: "Fade"
+		            }
+		        },
+		        input: {
+		            type: "checkbox",
+		            updateOnChange: false,
+		            startValue: true
+		        },
+		        onchange: function(value) {
+		        	this.pattern.options.fade = value;
+		        }
+		    }
+    },
 		}
 	},
 	'music-hue': {
