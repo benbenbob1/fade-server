@@ -268,6 +268,10 @@
                     rangeSet(event.target);
                 });
 
+                if (option.input.startValue != null) {
+                    elem.value = option.input.startValue;
+                }
+
                 if (option.input.range != null) {
                     elem.setAttribute("min", option.input.range.min);
                     elem.setAttribute("max", option.input.range.max);
@@ -276,11 +280,12 @@
                 elem.addEventListener("change", function(event) {
                     checkboxSet(event.target);
                 });
+                if (option.input.startValue != null) {
+                    elem.setAttribute("checked", option.input.startValue);
+                }
             }
 
-            if (option.input.startValue != null) {
-                elem.value = option.input.startValue;
-            }
+            
 
             rowElem.appendChild(lLabel);
             rowElem.appendChild(rLabel);

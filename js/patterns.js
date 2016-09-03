@@ -309,9 +309,8 @@ var patterns = {
 		        	this.pattern.options.fade = value;
 		        }
 		    }
-    },
 		}
-	},
+    },
 	'music-hue': {
 		id: 'music-hue',
 		interval: 0, 
