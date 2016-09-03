@@ -211,9 +211,9 @@ var patterns = {
 	},
 	'switch': {
 		id: 'switch',
-		interval: 500, //Every half second
+		interval: 250, //Every 1/4 second
 		options: {
-			startInterval: 500,
+			startInterval: 250,
 			fade: false
 		},
 		function: function() {
@@ -224,7 +224,6 @@ var patterns = {
 					[0, 0, 0]
 				];
 			}
-			console.log("Starting", curColors);
 			var count = curColors.length;
 			var max = count - 1;
 			var switched = true;
@@ -238,7 +237,6 @@ var patterns = {
 				var newStrip = (strip + this.patternHue) % count;
 				colors.push([curColors[newStrip][0], curColors[newStrip][1], curColors[newStrip][2]]);
 			}
-			console.log("Setting", colors);
 			this.writeColor(colors);
 			if (!this.options.fade) {
 				this.writeColor(colors);
