@@ -258,8 +258,8 @@ function writeColors(colors) {
 	writeLEDs(leds);
 }
 
-//[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
-function writeLEDs(arr) {
+//[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]] or array of rgb if onestrip is true
+function writeLEDs(arr, onestrip) {
 	//log("Writing leds to "+ arr.length +" strips");
 	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * arr.length) * 3);
 
@@ -282,16 +282,26 @@ function writeLEDs(arr) {
     // Dest position in our packet. Start right after the header.
     var dest = 4;
 
-    for (var strip = 0; strip < arr.length; strip++) {
-    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
-    	for (var led = 0; led < arr[strip].length; led++) {
-    		packet[dest++] = arr[strip][led][0];
-    		packet[dest++] = arr[strip][led][1];
-    		packet[dest++] = arr[strip][led][2];
+    if (onestrip) {
+    	for (var led = 0; led < maxLedsPerStrip*numStrips; led++) {
+    		packet[dest++] = arr[led][0];
+    		packet[dest++] = arr[led][1];
+    		packet[dest++] = arr[led][2];
     	}
-    	var toGo = maxLedsPerStrip - led;
-    	dest += (toGo*3);
+    } else {
+    	for (var strip = 0; strip < arr.length; strip++) {
+	    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
+	    	for (var led = 0; led < arr[strip].length; led++) {
+	    		packet[dest++] = arr[strip][led][0];
+	    		packet[dest++] = arr[strip][led][1];
+	    		packet[dest++] = arr[strip][led][2];
+	    	}
+	    	var toGo = maxLedsPerStrip - led;
+	    	dest += (toGo*3);
+	    }
     }
+
+    
     
     clientSocket.send(packet.buffer);
 

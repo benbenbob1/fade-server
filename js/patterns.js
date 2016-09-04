@@ -69,14 +69,38 @@ var __configs = {
         	this.pattern.options.fade = value;
         }
     },
-	brightness: {
+    brightness: {
+        label: {
+            left: {
+                id: "",
+                text: "Brightness"
+            },
+            right: {
+                id: "config-brightness-input-percent",
+                text: "100%"
+            }
+        },
+        input: {
+            type: "range",
+            updateOnChange: true,
+            startValue: 100,
+            range: {
+                min: 0,
+                max: 100
+            }
+        },
+        onchange: function(value) {
+        	this.pattern.options.brightness = (value/100);
+        }
+    },
+	lightness: {
         label: {
             left: {
                 id: "",
                 text: "Lightness"
             },
             right: {
-                id: "config-brightness-input-percent",
+                id: "config-lightness-input-percent",
                 text: "50%"
             }
         },
@@ -141,7 +165,7 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
-			"config-brightness": __configs.brightness,
+			"config-lightness": __configs.lightness,
             "config-saturation": __configs.saturation
         }
 	},
@@ -167,7 +191,7 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
-			"config-brightness": __configs.brightness,
+			"config-lightness": __configs.lightness,
             "config-saturation": __configs.saturation
         }
 	},
@@ -192,7 +216,7 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
-			"config-brightness": __configs.brightness,
+			"config-lightness": __configs.lightness,
             "config-saturation": __configs.saturation
         }
 	},
@@ -217,7 +241,7 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
-			"config-brightness": __configs.brightness,
+			"config-lightness": __configs.lightness,
             "config-saturation": __configs.saturation
         }
 	},
@@ -264,6 +288,7 @@ var patterns = {
 		interval: 500, //Every half second
 		options: {
 			startInterval: 500,
+			brightness: 1.0,
 			fade: true
 		},
 		function: function() {
@@ -282,7 +307,7 @@ var patterns = {
 			for (var s=0; s<stripCount; s++) {
 				var strip = [];
 				for (var x=0; x<30; x++) {
-					strip.push(randColor());
+					strip.push(randColor() * this.options.brightness);
 				}
 				strips.push(strip);
 			}
@@ -293,6 +318,92 @@ var patterns = {
 		},
 		config: {
 			"config-speed": __configs.speed,
+			"config-brightness": __configs.brightness,
+            "config-fade-tween": {
+		        label: {
+		            left: {
+		                id: "",
+		                text: "Fade"
+		            }
+		        },
+		        input: {
+		            type: "checkbox",
+		            updateOnChange: false,
+		            startValue: true
+		        },
+		        onchange: function(value) {
+		        	this.pattern.options.fade = value;
+		        }
+		    }
+		}
+    },
+	'waves': {
+		id: 'waves',
+		interval: 500, //Every second
+		options: {
+			startInterval: 500,
+			brightness: 1.0,
+			fade: true
+		},
+		function: function() {
+			var strip = []; //one strip of 60 leds
+			var leds = 128;
+			for (var i=0; i<leds; i++) {
+				strip[i] = [0,0,0];
+			}
+			var redPos 	= this.options.redPos  || 0;
+			var greenPos= this.options.greenPos|| 0;
+			var bluePos = this.options.bluePos || 0;
+
+			var offset = 0;
+
+			for (var red=0; red<(leds); red++) {
+				offset = red - redPos;
+				strip[red][0] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
+			}
+			for (var green=0; green<(leds); green++) {
+				offset = green - greenPos;
+				strip[green][1] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
+			}
+			for (var blue=0; blue<(leds); blue++) {
+				offset = blue - bluePos;
+				strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
+			}
+			this.writeLEDs(strip, true);
+			if (!this.options.fade) {
+				this.writeLEDs(strip, true);
+			}
+
+			if (redPos === 0) {
+				this.options.redPos = 0;
+			}
+			if (greenPos === 0) {
+				this.options.greenPos = 0;
+			}
+			if (bluePos === 0) {
+				this.options.bluePos = 0;
+			}
+
+			redPos += 10;
+			greenPos += 5;
+			bluePos += 1;
+			if (redPos > leds) {
+				redPos -= leds;
+			}
+			if (greenPos > leds) {
+				greenPos -= leds;
+			}
+			if (bluePos > leds) {
+				bluePos -= leds;
+			}
+
+			this.options.redPos = redPos;
+			this.options.greenPos = greenPos;
+			this.options.bluePos = bluePos;
+		},
+		config: {
+			"config-speed": __configs.speed,
+			"config-brightness": __configs.brightness,
             "config-fade-tween": {
 		        label: {
 		            left: {
