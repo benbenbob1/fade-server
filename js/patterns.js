@@ -26,7 +26,7 @@ var __configs = {
 	        }
 	    },
 	    onchange: function(value) {
-	    	this.pattern.interval = Math.floor(1/(value/100) * this.pattern.options.startInterval);
+	    	this.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
 	speed_fast: {
@@ -50,7 +50,7 @@ var __configs = {
 	        }
 	    },
 	    onchange: function(value) {
-	    	this.pattern.interval = Math.floor(1/(value/100) * this.pattern.options.startInterval);
+	    	this.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
 	fade: {
@@ -66,7 +66,7 @@ var __configs = {
             startValue: false
         },
         onchange: function(value) {
-        	this.pattern.options.fade = value;
+        	this.options.fade = value;
         }
     },
     brightness: {
@@ -90,7 +90,7 @@ var __configs = {
             }
         },
         onchange: function(value) {
-        	this.pattern.options.brightness = (value/100);
+        	this.options.brightness = (value/100);
         }
     },
 	lightness: {
@@ -114,7 +114,7 @@ var __configs = {
             }
         },
         onchange: function(value) {
-        	this.pattern.options.brightness = (value/100);
+        	this.options.brightness = (value/100);
         }
     },
     saturation: {
@@ -138,7 +138,7 @@ var __configs = {
             }
         },
         onchange: function(value) {
-        	this.pattern.options.saturation = (value/100);
+        	this.options.saturation = (value/100);
         }
     }
 }
@@ -294,9 +294,9 @@ var patterns = {
 		function: function() {
 			var strips = [];
 			var stripCount = 2;
-			function randColor() {
+			function randColor(brightness) {
 				function color() {
-					return Math.floor(Math.random() * 255);
+					return Math.floor(Math.random() * 255 * brightness);
 				}
 				return [
 					color(),
@@ -307,7 +307,7 @@ var patterns = {
 			for (var s=0; s<stripCount; s++) {
 				var strip = [];
 				for (var x=0; x<30; x++) {
-					strip.push(randColor() * this.options.brightness);
+					strip.push(randColor(this.options.brightness));
 				}
 				strips.push(strip);
 			}
@@ -332,7 +332,7 @@ var patterns = {
 		            startValue: true
 		        },
 		        onchange: function(value) {
-		        	this.pattern.options.fade = value;
+		        	this.options.fade = value;
 		        }
 		    }
 		}
@@ -417,7 +417,7 @@ var patterns = {
 		            startValue: true
 		        },
 		        onchange: function(value) {
-		        	this.pattern.options.fade = value;
+		        	this.options.fade = value;
 		        }
 		    }
 		}

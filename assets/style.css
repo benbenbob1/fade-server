@@ -178,6 +178,44 @@ button.jscolor.offline {
     background-image: repeating-linear-gradient( 90deg, purple, blue 20%, green 40%, yellow 60%, orange 80%, red 100% );
 }
 
+#pattern-waves {
+    overflow: hidden;
+    position: relative;
+}
+
+.pattern-waves-circle {
+    width: 10px;
+    height: 10px;
+    border-radius: 100px;
+    filter: blur(1px) saturate(180%);
+    position: absolute;
+    z-index: 1;
+}
+
+#pattern-waves-text {
+    z-index: 2;
+    position: relative;
+    color: white;
+}
+
+#pattern-waves-circle-red {
+    background: red;
+    top: 3px;
+    left: 4px;
+}
+
+#pattern-waves-circle-green {
+    background: lightgreen;
+    top: 5px;
+    left: 12px;
+}
+
+#pattern-waves-circle-blue {
+    background: blue;
+    top: 10px;
+    left: 7px;
+}
+
 #pattern-rainbow-jump {
     background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
 }

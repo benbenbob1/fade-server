@@ -33,7 +33,7 @@ var pattern = null;
 var chosenColors = [];
 
 function log(text) {
-	//process.stdout.write(text+"\n");
+	process.stdout.write(text+"\n");
 }
 
 function socketErr() {
@@ -91,10 +91,7 @@ function connectSocket() {
 				startPattern(data.id);
 			} else if ('config' in data) {
 				if (pattern && pattern.config && pattern.config[data.config]) {
-					var me = {
-						pattern: pattern
-					};
-					pattern.config[data.config].onchange.call(me, data.value);
+					pattern.config[data.config].onchange.call(pattern, data.value);
 				}
 			}
 		});
@@ -252,10 +249,7 @@ function writeColors(colors) {
 		}
 		leds.push(aStrip);
 	}
-	/*for (var i=0; i<colors.length; i++) {
-		stripStatus[i] = colors[i];
-	}*/
-	writeLEDs(leds);
+	writeLEDs(leds, false);
 }
 
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]] or array of rgb if onestrip is true
@@ -300,8 +294,6 @@ function writeLEDs(arr, onestrip) {
 	    	dest += (toGo*3);
 	    }
     }
-
-    
     
     clientSocket.send(packet.buffer);
 
