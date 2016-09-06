@@ -57,8 +57,8 @@ function socketErr() {
 }
 
 function connectSocket() {
-	var addr = 'ws://127.0.0.1:7890';
-	//var addr = 'ws://rpi.student.rit.edu:7890';
+	//var addr = 'ws://127.0.0.1:7890';
+	var addr = 'ws://rpi.student.rit.edu:7890';
 	console.log("Connecting websocket to "+addr)
 	clientSocket = WebSocketClient(addr);
 	clientSocket.on('open', function() {
@@ -185,18 +185,19 @@ function hslToRgb(h, s, l){
 }
 
 function startPattern(id) {
-	if (pattern !== null || patternInterval !== null) {
-		endPattern();
-	} else if (id === 'stop') {
+	if (id === 'stop') {
 		endPattern();
 		return;
+	} else if (pattern !== null || patternInterval !== null) {
+		endPattern();
 	}
 
 	console.log("Starting: "+id)
 
 	pattern = patterns[id];
-	if (pattern != null) {
-		if (pattern.interval > 0) {
+	var options = pattern.options || null;
+	if (pattern != null && options) {
+		if (pattern.options.interval > 0) {
 			var me = {
 				getColors: getColors,
 				patternHue: patternHue,
@@ -212,16 +213,16 @@ function startPattern(id) {
 				}
 				justStarted = false;
 				pattern.function.call(me);
-				patternInterval = setTimeout(callPattern, pattern.interval);
+				patternInterval = setTimeout(callPattern, pattern.options.interval);
 			}
 			callPattern();
-		} else if (pattern.interval < 0) {
-			patternInterval = setTimeout(pattern.function, -pattern.interval);
-		} else if (pattern.interval === 0) {
+		} else if (pattern.options.interval < 0) {
+			patternInterval = setTimeout(pattern.function, -pattern.options.interval);
+		} else if (pattern.options.interval === 0) {
 			patternInterval = pattern.function();
 		}
 	}
-	serverSocket.emit('color', {id: id});
+	serverSocket.emit('color', {id: id, config: options});
 }
 
 function endPattern() {

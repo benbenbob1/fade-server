@@ -11,8 +11,8 @@
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
     var buttons = null;
-    var socket = io.connect('http://rpi.student.rit.edu:8080');
-    //var socket = io.connect('http://127.0.0.1:8080');
+    //var socket = io.connect('http://rpi.student.rit.edu:8080');
+    var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
     var reachable = false;
 
@@ -25,7 +25,7 @@
         } else if ('id' in data) {
             deselectPreset();
             if (data.id != 'stop') {
-                choosePreset(data.id);
+                choosePreset(data.id, data.config);
             } else {
                 //console.log("Got stop pattern message");
             }
@@ -133,7 +133,9 @@
         return $('.button-selected').removeClass('button-selected').attr('id');
     }
 
-    function choosePreset(id) {
+    //Called by external preset updating
+    function choosePreset(id, options) {
+        console.log(options);
         $('#pattern-'+id).addClass('button-selected');
         if (patterns[id].config) {
             setupConfig(patterns[id].config);
@@ -313,15 +315,15 @@
 
         <div class='button-collection'>
             <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)'></button>
-            <button class='preset-button' id='pattern-rainbow-fade2' onclick='chosePreset(this.id)'></button>
-            <button class='preset-button' id='pattern-rainbow-fade3' onclick='chosePreset(this.id)'>
-                <div id='pattern-rainbow-fade3-top'></div>
-                <div id='pattern-rainbow-fade3-bottom'></div>
+            <button class='preset-button' id='pattern-rainbow-alternate' onclick='chosePreset(this.id)'>
+                <div id='pattern-rainbow-alternate-top'></div>
+                <div id='pattern-rainbow-alternate-bottom'></div>
             </button>
             <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
             <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
             <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)'>?</button>
-            <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)'><span id='pattern-waves-text'>?</span>
+            <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)'>
+                <span id='pattern-waves-text'></span>
                 <div id='pattern-waves-circle-red' class='pattern-waves-circle'></div>
                 <div id='pattern-waves-circle-green' class='pattern-waves-circle'></div>
                 <div id='pattern-waves-circle-blue' class='pattern-waves-circle'></div>

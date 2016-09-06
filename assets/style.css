@@ -164,16 +164,12 @@ button.jscolor.offline {
     background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
 }
 
-#pattern-rainbow-fade2 {
-    background-image: repeating-linear-gradient( 90deg, red, orange 10%, yellow 20%, green 30%, blue 40%, purple 50% );
-}
-
-#pattern-rainbow-fade3-top {
+#pattern-rainbow-alternate-top {
     height: 50%;
     background-image: repeating-linear-gradient( 90deg, red, orange 20%, yellow 40%, green 60%, blue 80%, purple 100% );
 }
 
-#pattern-rainbow-fade3-bottom {
+#pattern-rainbow-alternate-bottom {
     height: 50%;
     background-image: repeating-linear-gradient( 90deg, purple, blue 20%, green 40%, yellow 60%, orange 80%, red 100% );
 }

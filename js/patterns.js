@@ -26,7 +26,7 @@ var __configs = {
 	        }
 	    },
 	    onchange: function(value) {
-	    	this.interval = Math.floor(1/(value/100) * this.options.startInterval);
+	    	this.options.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
 	speed_fast: {
@@ -50,7 +50,7 @@ var __configs = {
 	        }
 	    },
 	    onchange: function(value) {
-	    	this.interval = Math.floor(1/(value/100) * this.options.startInterval);
+	    	this.options.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
 	fade: {
@@ -146,11 +146,11 @@ var __configs = {
 var patterns = {
 	'rainbow-fade': {
 		id: 'rainbow-fade',
-		interval: 500, //Every half second
 		options: {
 			saturation: 1.0,
 			brightness: 0.5,
-			startInterval: 500
+			startInterval: 500,
+			interval: 500 //Every half second
 		},
 		function: function() {
 			this.patternHue += 0.05;
@@ -169,39 +169,13 @@ var patterns = {
             "config-saturation": __configs.saturation
         }
 	},
-	'rainbow-fade2': {
-		id: 'rainbow-fade2',
-		interval: 200, //Every 1/5 second
+	'rainbow-alternate': {
+		id: 'rainbow-alternate',
 		options: {
 			saturation: 1.0,
 			brightness: 0.5,
-			startInterval: 500
-		},
-		function: function() {
-			this.patternHue += 0.1;
-			if (this.patternHue >= 1.0) {
-				this.patternHue = 0.0;
-			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
-			this.writeColor([
-				[col[0], col[1], col[2]],
-				[col[0], col[1], col[2]]
-			]);
-			//this.writeColor(col[0], col[1], col[2], [0, 1]);
-		},
-		config: {
-			"config-speed": __configs.speed,
-			"config-lightness": __configs.lightness,
-            "config-saturation": __configs.saturation
-        }
-	},
-	'rainbow-fade3': {
-		id: 'rainbow-fade3',
-		interval: 500, //Every 1/5 second
-		options: {
-			saturation: 1.0,
-			brightness: 0.5,
-			startInterval: 500
+			startInterval: 500,
+			interval: 500 //Every 1/5 second
 		},
 		function: function() {
 			this.patternHue += 0.05;
@@ -222,11 +196,11 @@ var patterns = {
 	},
 	'rainbow-jump': {
 		id: 'rainbow-jump',
-		interval: 800, //Every 4/5 second
 		options: {
 			saturation: 1.0,
 			brightness: 0.5,
-			startInterval: 500
+			startInterval: 500,
+			interval: 800 //Every 4/5 second
 		},
 		function: function() {
 			this.patternHue += 0.2;
@@ -247,9 +221,9 @@ var patterns = {
 	},
 	'switch': {
 		id: 'switch',
-		interval: 250, //Every 1/4 second
 		options: {
 			startInterval: 250,
+			interval: 250, //Every 1/4 second
 			fade: false
 		},
 		function: function() {
@@ -285,9 +259,9 @@ var patterns = {
 	},
 	'random': {
 		id: 'random',
-		interval: 500, //Every half second
 		options: {
 			startInterval: 500,
+			interval: 500, //Every half second
 			brightness: 1.0,
 			fade: true
 		},
@@ -339,9 +313,9 @@ var patterns = {
     },
 	'waves': {
 		id: 'waves',
-		interval: 500, //Every second
 		options: {
 			startInterval: 500,
+			interval: 500, //Every second
 			brightness: 1.0,
 			fade: true
 		},
