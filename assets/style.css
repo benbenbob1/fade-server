@@ -183,7 +183,7 @@ button.jscolor.offline {
     width: 10px;
     height: 10px;
     border-radius: 100px;
-    filter: blur(1px) saturate(180%);
+    -webkit-filter: blur(2px) saturate(180%);
     position: absolute;
     z-index: 1;
 }
@@ -212,10 +212,6 @@ button.jscolor.offline {
     left: 7px;
 }
 
-#pattern-rainbow-jump {
-    background-image: repeating-linear-gradient( 90deg, red, red 16%, orange 16%, orange 32%, yellow 32%, yellow 48%, green 48%, green 64%, blue 64%, blue 80%, purple 80%, purple 96% );
-}
-
 #pattern-switch {
     background-image: repeating-linear-gradient( 90deg, white, white 50%, black 50%, black 100% );
 }
@@ -232,6 +228,22 @@ button.jscolor.offline {
     background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAATklEQVQYV2O0O3X+PwMDA8MhM0NGEI0LMBKtEJsJD27YgW1R0DgEtwWrdUQrxGYLY8V5iDUdhghrKFOITfenmXFgW/jSF+H3DNEKsdkCAO99IAvSBrFVAAAAAElFTkSuQmCC) repeat;
 }
 
+#pattern-moving-fade {
+    background-image: repeating-linear-gradient( 90deg, red, orange 20%, yellow 40%, green 60%, blue 80%, red 100% );
+    animation: hue-rotate 3s linear infinite;
+}
+
+@keyframes hue-rotate {
+    from {
+        /*-webkit-filter: hue-rotate(0deg);*/
+        background-position-x: 0px;
+    }
+    to {
+        /*-webkit-filter: hue-rotate(359deg);*/
+        background-position-x: 24px;
+    }
+}
+
 #config-space {
     margin-top: 50px;
     display: block;
@@ -242,7 +254,13 @@ button.jscolor.offline {
 
 .config-item-row {
     width: 65%;
-    margin: 0 auto;
+    margin: 10px auto;
+}
+
+.config-item-row:after {
+    clear: both;
+    content: " ";
+    display: block;
 }
 
 .config-item-row input {
@@ -257,10 +275,6 @@ button.jscolor.offline {
     height: 13px;
     float: right;
     margin-top: 4px;
-}
-
-label.config-item:after {
-    clear: both;
 }
 
 .config-item.item-left {

@@ -69,6 +69,22 @@ var __configs = {
         	this.options.fade = value;
         }
     },
+    fade_true: {
+        label: {
+            left: {
+                id: "",
+                text: "Fade"
+            }
+        },
+        input: {
+            type: "checkbox",
+            updateOnChange: false,
+            startValue: true
+        },
+        onchange: function(value) {
+        	this.options.fade = value;
+        }
+    },
     brightness: {
         label: {
             left: {
@@ -147,6 +163,7 @@ var patterns = {
 	'rainbow-fade': {
 		id: 'rainbow-fade',
 		options: {
+			fade: true,
 			saturation: 1.0,
 			brightness: 0.5,
 			startInterval: 500,
@@ -162,8 +179,15 @@ var patterns = {
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
 			]);
+			if (!this.options.fade) {
+				this.writeColor([
+					[col[0], col[1], col[2]],
+					[col[0], col[1], col[2]]
+				]);
+			}
 		},
 		config: {
+			"config-fade-tween": __configs.fade_true,
 			"config-speed": __configs.speed,
 			"config-lightness": __configs.lightness,
             "config-saturation": __configs.saturation
@@ -186,31 +210,6 @@ var patterns = {
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[255-col[0], 255-col[1], 255-col[2]]
-			]);
-		},
-		config: {
-			"config-speed": __configs.speed,
-			"config-lightness": __configs.lightness,
-            "config-saturation": __configs.saturation
-        }
-	},
-	'rainbow-jump': {
-		id: 'rainbow-jump',
-		options: {
-			saturation: 1.0,
-			brightness: 0.5,
-			startInterval: 500,
-			interval: 800 //Every 4/5 second
-		},
-		function: function() {
-			this.patternHue += 0.2;
-			if (this.patternHue >= 1.0) {
-				this.patternHue = 0.0;
-			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
-			this.writeColor([
-				[col[0], col[1], col[2]],
-				[col[0], col[1], col[2]]
 			]);
 		},
 		config: {
@@ -396,6 +395,39 @@ var patterns = {
 		    }
 		}
     },
+    'moving-fade': {
+		id: 'moving-fade',
+		options: {
+			saturation: 1.0,
+			brightness: 0.5,
+			startInterval: 500,
+			interval: 500, //Every half second
+			fade: true
+		},
+		function: function() {
+			this.patternHue += 0.1;
+			if (this.patternHue >= 1.0) {
+				this.patternHue = 0.0;
+			}
+
+			var strip = [];
+			for (var led=0; led<30; led++) {
+				var hue = this.patternHue+((led/30))%1;
+				var col = this.hslToRgb(hue, this.options.saturation, this.options.brightness);
+				strip.push(col);
+			}
+			this.writeLEDs([strip, strip]);
+			if (!this.options.fade) {
+				this.writeLEDs([strip, strip]);
+			}
+		},
+		config: {
+			"config-fade-tween": __configs.fade,
+			"config-speed": __configs.speed,
+			"config-lightness": __configs.lightness,
+            "config-saturation": __configs.saturation
+        }
+	},
 	'music-hue': {
 		id: 'music-hue',
 		interval: 0, 

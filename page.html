@@ -11,8 +11,11 @@
 <script type='text/javascript'>
     var colorsLocked, lastButtonPressedId;
     var buttons = null;
+    var loc = document.location.origin;
+    var socket = io.connect(loc);
+    console.log("Socket connected to ",loc)
     //var socket = io.connect('http://rpi.student.rit.edu:8080');
-    var socket = io.connect('http://127.0.0.1:8080');
+    //var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
     var reachable = false;
 
@@ -319,7 +322,6 @@
                 <div id='pattern-rainbow-alternate-top'></div>
                 <div id='pattern-rainbow-alternate-bottom'></div>
             </button>
-            <button class='preset-button' id='pattern-rainbow-jump' onclick='chosePreset(this.id)'></button>
             <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
             <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)'>?</button>
             <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)'>
@@ -328,6 +330,7 @@
                 <div id='pattern-waves-circle-green' class='pattern-waves-circle'></div>
                 <div id='pattern-waves-circle-blue' class='pattern-waves-circle'></div>
             </button>
+            <button class='preset-button' id='pattern-moving-fade' onclick='chosePreset(this.id)'></button>
             <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)'></button>
         </div>
 
