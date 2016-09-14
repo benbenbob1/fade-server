@@ -1,6 +1,12 @@
+// Negative pattern interval starts after that many seconds (*-1)
+// 0 for interval has no delay and no repeat - the function MUST return a TIMEOUT!
+
+// Current selected colors are located at this.chosenColors[strip] = [r, g, b]
+// this.patternHue = current hue
+
 var __configs = {
-	interval_10_500: {
-		label: {
+	speed: {
+	    label: {
 	        left: {
 	            id: "",
 	            text: "Speed"
@@ -12,18 +18,19 @@ var __configs = {
 	    },
 	    input: {
 	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
+	        updateOnChange: true,
+	        startValue: 100,
 	        range: {
 	            min: 10,
 	            max: 500
 	        }
+	    },
+	    onchange: function(value) {
+	    	this.options.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
-	interval_10_1000: {
-		label: {
+	speed_fast: {
+	    label: {
 	        left: {
 	            id: "",
 	            text: "Speed"
@@ -35,18 +42,19 @@ var __configs = {
 	    },
 	    input: {
 	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
+	        updateOnChange: true,
+	        startValue: 100,
 	        range: {
 	            min: 10,
 	            max: 1000
 	        }
+	    },
+	    onchange: function(value) {
+	    	this.options.interval = Math.floor(1/(value/100) * this.options.startInterval);
 	    }
 	},
 	fade: {
-		label: {
+        label: {
             left: {
                 id: "",
                 text: "Fade"
@@ -54,13 +62,31 @@ var __configs = {
         },
         input: {
             type: "checkbox",
-            update: function(value) {
-	        	this.options.fade.value = value;
-	        }
+            updateOnChange: false,
+            startValue: false
+        },
+        onchange: function(value) {
+        	this.options.fade = value;
         }
-	},
-	brightness: {
-		label: {
+    },
+    fade_true: {
+        label: {
+            left: {
+                id: "",
+                text: "Fade"
+            }
+        },
+        input: {
+            type: "checkbox",
+            updateOnChange: false,
+            startValue: true
+        },
+        onchange: function(value) {
+        	this.options.fade = value;
+        }
+    },
+    brightness: {
+        label: {
             left: {
                 id: "",
                 text: "Brightness"
@@ -72,18 +98,19 @@ var __configs = {
         },
         input: {
             type: "range",
-            update: function(value) {
-	        	this.options.brightness.value = (value/100);
-	        },
-	        valueType: "percent",
+            updateOnChange: true,
+            startValue: 100,
             range: {
                 min: 0,
                 max: 100
             }
+        },
+        onchange: function(value) {
+        	this.options.brightness = (value/100);
         }
-	},
+    },
 	lightness: {
-		label: {
+        label: {
             left: {
                 id: "",
                 text: "Lightness"
@@ -95,18 +122,19 @@ var __configs = {
         },
         input: {
             type: "range",
-            update: function(value) {
-	        	this.options.brightness.value = (value/100);
-	        },
-	        valueType: "percent",
+            updateOnChange: true,
+            startValue: 50,
             range: {
                 min: 0,
                 max: 100
             }
+        },
+        onchange: function(value) {
+        	this.options.brightness = (value/100);
         }
-	},
-	saturation: {
-		label: {
+    },
+    saturation: {
+        label: {
             left: {
                 id: "",
                 text: "Saturation"
@@ -118,113 +146,84 @@ var __configs = {
         },
         input: {
             type: "range",
-            valueType: "percent",
-            update: function(value) {
-	        	this.options.saturation.value = (value/100);
-	        },
+            updateOnChange: true,
+            startValue: 100,
             range: {
                 min: 0,
                 max: 100
             }
+        },
+        onchange: function(value) {
+        	this.options.saturation = (value/100);
         }
-	}
-};
+    }
+}
 
 var patterns = {
 	'rainbow-fade': {
+		id: 'rainbow-fade',
 		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.lightness
-			},
-			saturation: {
-				displayValue: 100,
-				defaultValue: 1.0,
-				config: __configs.saturation
-			}
+			fade: true,
+			saturation: 1.0,
+			brightness: 0.5,
+			startInterval: 500,
+			interval: 500 //Every half second
 		},
 		function: function() {
 			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
+			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
 			]);
-			if (!this.options.fade.value) {
+			if (!this.options.fade) {
 				this.writeColor([
 					[col[0], col[1], col[2]],
 					[col[0], col[1], col[2]]
 				]);
 			}
-		}
+		},
+		config: {
+			"config-fade-tween": __configs.fade_true,
+			"config-speed": __configs.speed,
+			"config-lightness": __configs.lightness,
+            "config-saturation": __configs.saturation
+        }
 	},
 	'rainbow-alternate': {
+		id: 'rainbow-alternate',
 		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.lightness
-			},
-			saturation: {
-				displayValue: 100,
-				defaultValue: 1.0,
-				config: __configs.saturation
-			}
+			saturation: 1.0,
+			brightness: 0.5,
+			startInterval: 500,
+			interval: 500 //Every 1/5 second
 		},
 		function: function() {
 			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
 				this.patternHue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
+			var col = this.hslToRgb(this.patternHue, this.options.saturation, this.options.brightness);
 			this.writeColor([
 				[col[0], col[1], col[2]],
 				[255-col[0], 255-col[1], 255-col[2]]
 			]);
-			if (!this.options.fade.value) {
-				this.writeColor([
-					[col[0], col[1], col[2]],
-					[255-col[0], 255-col[1], 255-col[2]]
-				]);
-			}
 		},
+		config: {
+			"config-speed": __configs.speed,
+			"config-lightness": __configs.lightness,
+            "config-saturation": __configs.saturation
+        }
 	},
 	'switch': {
+		id: 'switch',
 		options: {
-			fade: {
-				displayValue: false,
-				defaultValue: false,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 250,
-				config: __configs.interval_10_500
-			}
+			startInterval: 250,
+			interval: 250, //Every 1/4 second
+			fade: false
 		},
 		function: function() {
 			var curColors = this.getColors();
@@ -248,28 +247,22 @@ var patterns = {
 				colors.push([curColors[newStrip][0], curColors[newStrip][1], curColors[newStrip][2]]);
 			}
 			this.writeColor(colors);
-			if (!this.options.fade.value) {
+			if (!this.options.fade) {
 				this.writeColor(colors);
 			}
+		},
+		config: {
+			"config-speed": __configs.speed_fast,
+            "config-fade-tween": __configs.fade
 		}
 	},
 	'random': {
+		id: 'random',
 		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.brightness
-			}
+			startInterval: 500,
+			interval: 500, //Every half second
+			brightness: 1.0,
+			fade: true
 		},
 		function: function() {
 			var strips = [];
@@ -287,33 +280,43 @@ var patterns = {
 			for (var s=0; s<stripCount; s++) {
 				var strip = [];
 				for (var x=0; x<30; x++) {
-					strip.push(randColor(this.options.brightness.value));
+					strip.push(randColor(this.options.brightness));
 				}
 				strips.push(strip);
 			}
 			this.writeLEDs(strips);
-			if (!this.options.fade.value) {
+			if (!this.options.fade) {
 				this.writeLEDs(strips);
 			}
+		},
+		config: {
+			"config-speed": __configs.speed,
+			"config-brightness": __configs.brightness,
+            "config-fade-tween": {
+		        label: {
+		            left: {
+		                id: "",
+		                text: "Fade"
+		            }
+		        },
+		        input: {
+		            type: "checkbox",
+		            updateOnChange: false,
+		            startValue: true
+		        },
+		        onchange: function(value) {
+		        	this.options.fade = value;
+		        }
+		    }
 		}
-	},
+    },
 	'waves': {
+		id: 'waves',
 		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.brightness
-			}
+			startInterval: 500,
+			interval: 500, //Every second
+			brightness: 1.0,
+			fade: true
 		},
 		function: function() {
 			var strip = []; //one strip of 60 leds
@@ -329,18 +332,18 @@ var patterns = {
 
 			for (var red=0; red<(leds); red++) {
 				offset = red - redPos;
-				strip[red][0] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+				strip[red][0] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
 			}
 			for (var green=0; green<(leds); green++) {
 				offset = green - greenPos;
-				strip[green][1] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+				strip[green][1] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
 			}
 			for (var blue=0; blue<(leds); blue++) {
 				offset = blue - bluePos;
-				strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+				strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
 			}
 			this.writeLEDs(strip, true);
-			if (!this.options.fade.value) {
+			if (!this.options.fade) {
 				this.writeLEDs(strip, true);
 			}
 
@@ -370,30 +373,36 @@ var patterns = {
 			this.options.redPos = redPos;
 			this.options.greenPos = greenPos;
 			this.options.bluePos = bluePos;
+		},
+		config: {
+			"config-speed": __configs.speed,
+			"config-brightness": __configs.brightness,
+            "config-fade-tween": {
+		        label: {
+		            left: {
+		                id: "",
+		                text: "Fade"
+		            }
+		        },
+		        input: {
+		            type: "checkbox",
+		            updateOnChange: false,
+		            startValue: true
+		        },
+		        onchange: function(value) {
+		        	this.options.fade = value;
+		        }
+		    }
 		}
-	},
-	'moving-fade': {
+    },
+    'moving-fade': {
+		id: 'moving-fade',
 		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.lightness
-			},
-			saturation: {
-				displayValue: 100,
-				defaultValue: 1.0,
-				config: __configs.saturation
-			}
+			saturation: 1.0,
+			brightness: 0.5,
+			startInterval: 500,
+			interval: 500, //Every half second
+			fade: true
 		},
 		function: function() {
 			this.patternHue += 0.1;
@@ -404,21 +413,24 @@ var patterns = {
 			var strip = [];
 			for (var led=0; led<30; led++) {
 				var hue = this.patternHue+((led/30))%1;
-				var col = this.hslToRgb(hue, this.options.saturation.value, this.options.brightness.value);
+				var col = this.hslToRgb(hue, this.options.saturation, this.options.brightness);
 				strip.push(col);
 			}
 			this.writeLEDs([strip, strip]);
-			if (!this.options.fade.value) {
+			if (!this.options.fade) {
 				this.writeLEDs([strip, strip]);
 			}
-		}
+		},
+		config: {
+			"config-fade-tween": __configs.fade,
+			"config-speed": __configs.speed,
+			"config-lightness": __configs.lightness,
+            "config-saturation": __configs.saturation
+        }
 	},
 	'music-hue': {
-		options: {
-			interval: {
-				defaultValue: 0
-			}
-		},
+		id: 'music-hue',
+		interval: 0, 
 		function: function() {
 			console.log("This is a test");
 			return setInterval(pattern.function, 0.5);

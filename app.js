@@ -73,7 +73,8 @@ function connectSocket() {
 		socket.join('color');
 		if (pattern != null) {
 			socket.emit('color', {
-				id: pattern.id
+				id: pattern.id,
+				config: pattern.options
 			});
 		} else {
 			broadcastColor(socket);
@@ -90,8 +91,12 @@ function connectSocket() {
 			} else if ('id' in data) {
 				startPattern(data.id);
 			} else if ('config' in data) {
-				if (pattern && pattern.config && pattern.config[data.config]) {
-					pattern.config[data.config].onchange.call(pattern, data.value);
+				if (pattern && pattern.options && pattern.options[data.config]) {
+					var input = pattern.options[data.config].config.input;
+					if (input && typeof input.update !== undefined) {
+						pattern.options[data.config].displayValue = data.value;
+						input.update.call(pattern, data.value);
+					}
 				}
 			}
 		});
@@ -185,19 +190,20 @@ function hslToRgb(h, s, l){
 }
 
 function startPattern(id) {
-	if (id === 'stop') {
+	if (id == 'stop') {
 		endPattern();
 		return;
 	} else if (pattern !== null || patternInterval !== null) {
 		endPattern();
 	}
 
-	console.log("Starting: "+id)
+	console.log("Starting: "+id);
 
 	pattern = patterns[id];
+	pattern.id = id;
 	var options = pattern.options || null;
 	if (pattern != null && options) {
-		if (pattern.options.interval > 0) {
+		if (pattern.options.interval.defaultValue > 0) {
 			var me = {
 				getColors: getColors,
 				patternHue: patternHue,
@@ -206,6 +212,20 @@ function startPattern(id) {
 				hslToRgb: hslToRgb,
 				options: pattern.options
 			};
+			patternStart = function() { //Start pattern
+				if (pattern.start) {
+					pattern.start.call(me);
+				}
+				if (pattern.options) {
+					var item;
+					for (var option in pattern.options) {
+						item = pattern.options[option];
+						if (item.defaultValue && typeof item.value === "undefined") {
+							item.value = item.defaultValue;
+						}
+					}
+				}
+			}
 			var justStarted = true;
 			callPattern = function() {
 				if (!patternInterval && !justStarted) { //breaking out is hard to do...
@@ -213,12 +233,12 @@ function startPattern(id) {
 				}
 				justStarted = false;
 				pattern.function.call(me);
-				patternInterval = setTimeout(callPattern, pattern.options.interval);
+				patternInterval = setTimeout(callPattern, pattern.options.interval.value);
 			}
 			callPattern();
-		} else if (pattern.options.interval < 0) {
-			patternInterval = setTimeout(pattern.function, -pattern.options.interval);
-		} else if (pattern.options.interval === 0) {
+		} else if (pattern.options.interval.defaultValue < 0) {
+			patternInterval = setTimeout(pattern.function, -pattern.options.interval.value);
+		} else if (pattern.options.interval.defaultValue === 0) {
 			patternInterval = pattern.function();
 		}
 	}
@@ -226,14 +246,14 @@ function startPattern(id) {
 }
 
 function endPattern() {
+	console.log("Stopping pattern");
 	if (patternInterval != null) {
-		console.log("Stopping pattern");
 		clearTimeout(patternInterval);
 	}
 
-	serverSocket.emit('color', {id: 'stop'});
 	patternInterval = null;
 	pattern = null;
+	serverSocket.emit('color', {id: 'stop'});
 }
 
 // [[r,g,b], [r,g,b]]

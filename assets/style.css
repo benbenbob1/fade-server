@@ -1,5 +1,4 @@
 html {
-    height: 95%;
 }
 
 body {
@@ -8,8 +7,6 @@ body {
     font-size: 15px;
     font-family: 'Montserrat', sans-serif;
     text-align: center;
-    height: 100%;
-    overflow: hidden;
 }
 
 h1 {
@@ -69,6 +66,7 @@ button.jscolor.offline {
     display: flex;
     width: 100%;
     justify-content: center;
+    margin-bottom: 50px;
 }
 
 .flexible-space {
@@ -88,6 +86,7 @@ button.jscolor.offline {
 	max-width: 420px;
     min-width: 220px;
 	flex-grow: 1;
+    margin-bottom: 30px;
 }
 
 .jscolor:first-child {
@@ -183,6 +182,7 @@ button.jscolor.offline {
     width: 10px;
     height: 10px;
     border-radius: 100px;
+    opacity: 0.8;
     -webkit-filter: blur(2px) saturate(180%);
     position: absolute;
     z-index: 1;
@@ -198,22 +198,32 @@ button.jscolor.offline {
     background: red;
     top: 3px;
     left: 4px;
+    transform-origin: 100% 50%;
+    animation: neg-rotate 5s linear infinite;
 }
 
 #pattern-waves-circle-green {
     background: lightgreen;
     top: 5px;
     left: 12px;
+    transform-origin: 0% 50%;
+    animation: rotate 10s linear infinite;
 }
 
 #pattern-waves-circle-blue {
     background: blue;
     top: 10px;
     left: 7px;
+    transform-origin: 50% 0%;
+    animation: neg-rotate 15s linear infinite;
 }
 
 #pattern-switch {
     background-image: repeating-linear-gradient( 90deg, white, white 50%, black 50%, black 100% );
+}
+
+#pattern-switch:hover {
+    background-image: repeating-linear-gradient( 90deg, black, black 50%, white 50%, white 100% );
 }
 
 #pattern-music-hue {
@@ -241,6 +251,24 @@ button.jscolor.offline {
     to {
         /*-webkit-filter: hue-rotate(359deg);*/
         background-position-x: 24px;
+    }
+}
+
+@keyframes neg-rotate {
+    to {
+        transform: rotateZ(0deg);
+    }
+    from {
+        transform: rotateZ(359deg);
+    }
+}
+
+@keyframes rotate {
+    from {
+        transform: rotateZ(0deg);
+    }
+    to {
+        transform: rotateZ(359deg);
     }
 }
 

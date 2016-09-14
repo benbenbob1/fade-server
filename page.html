@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0'>
+<script src='https://code.jquery.com/jquery-2.2.0.min.js'></script>
 <script src='/js/jscolor.min.js'></script>
 <script src='/js/socketio/socket.io.js'></script>
 <script src='/js/patterns.js'></script>
-<script src='https://code.jquery.com/jquery-2.2.0.min.js'></script>
 <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet' type='text/css'>
 <link href='/assets/style.css' rel='stylesheet' type='text/css'>
 <script type='text/javascript'>
@@ -13,7 +13,7 @@
     var buttons = null;
     var loc = document.location.origin;
     var socket = io.connect(loc);
-    console.log("Socket connected to ",loc)
+    console.log("Socket connected to",loc)
     //var socket = io.connect('http://rpi.student.rit.edu:8080');
     //var socket = io.connect('http://127.0.0.1:8080');
     var curFade = '';
@@ -30,7 +30,7 @@
             if (data.id != 'stop') {
                 choosePreset(data.id, data.config);
             } else {
-                //console.log("Got stop pattern message");
+                console.log("Got stop pattern message");
             }
         }
     });
@@ -138,10 +138,10 @@
 
     //Called by external preset updating
     function choosePreset(id, options) {
-        console.log(options);
         $('#pattern-'+id).addClass('button-selected');
-        if (patterns[id].config) {
-            setupConfig(patterns[id].config);
+        var config = options || patterns[id].config;
+        if (config) {
+            setupConfig(config);
         }
     }
 
@@ -153,10 +153,10 @@
         var last = deselectPreset();
         if (id !== last) {
             var submission = id.substring("pattern-".length);
-            setupConfig(patterns[submission].config || null);
+            //setupConfig(patterns[submission].options || null);
             post({id: submission});
         } else {
-            setupConfig();
+            removeConfig();
             post({id: "stop"});
         }
     }
@@ -222,7 +222,7 @@
     function rangeSet(element) {
         post({
             config: element.id,
-            value: element.value
+            value: parseInt(element.value)
         });
     }
 
@@ -233,15 +233,25 @@
         });
     }
 
+    function removeConfig(container) {
+        $(container).slideUp(400);
+        setTimeout(function() {
+            $(container).empty();
+        }, 400);
+    }
+
     function setupConfig(options) {
         var container = document.getElementById("config-space");
-        $(container).empty();
         if (!options) {
+            removeConfig(container);
             return;
+        } else if ($(container).is(":visible")) {
+            $(container).empty();
         }
-        var option;
+        var option, config;
         for (var index in options) {
             option = options[index];
+            config = option.config;
             var rowElem = document.createElement("div");
             rowElem.className = "config-item-row";
             var lLabel = document.createElement("span");
@@ -249,21 +259,25 @@
             lLabel.className = "config-item item-left";
             rLabel.className = "config-item item-right";
             var elem = document.createElement("input");
-            elem.type = option.input.type;
-            if (option.label.left) {
-                lLabel.id = option.label.left.id;
-                lLabel.innerText = option.label.left.text;
+            elem.type = config.input.type;
+            if (config.label.left) {
+                lLabel.id = config.label.left.id;
+                lLabel.innerText = config.label.left.text;
             }
-            if (option.label.right) {
-                rLabel.id = option.label.right.id;
-                rLabel.innerText = option.label.right.text;
+            if (config.label.right) {
+                rLabel.id = config.label.right.id;
+                if (config.input.valueType && config.input.valueType === "percent" && option.displayValue != null) {
+                    rLabel.innerText = option.displayValue + "%";
+                } else {
+                    rLabel.innerText = config.label.right.text;
+                }
             }
 
             elem.id = index;
-            elem.toChange = (option.label.right && option.label.right.id) || null;
+            elem.toChange = (config.label.right && config.label.right.id) || null;
             
-            if (option.input.type == "range") {
-                if (option.input.updateOnChange) {
+            if (config.input.type == "range") {
+                if (elem.toChange) {
                     elem.addEventListener("input", function(event) {
                         rangeAdjusted(event.target, event.target.toChange);
                     });
@@ -273,34 +287,31 @@
                     rangeSet(event.target);
                 });
 
-                if (option.input.startValue != null) {
-                    elem.value = option.input.startValue;
+                if (option.displayValue != null) {
+                    elem.setAttribute("value", option.displayValue);
                 }
 
-                if (option.input.range != null) {
-                    elem.setAttribute("min", option.input.range.min);
-                    elem.setAttribute("max", option.input.range.max);
+                if (config.input.range != null) {
+                    elem.setAttribute("min", config.input.range.min);
+                    elem.setAttribute("max", config.input.range.max);
                 }
-            } else if (option.input.type == "checkbox") {
+            } else if (config.input.type == "checkbox") {
                 elem.addEventListener("change", function(event) {
                     checkboxSet(event.target);
                 });
-                if (option.input.startValue != null) {
-                    elem.setAttribute("checked", option.input.startValue);
+                if (option.displayValue != null) {
+                    //elem.setAttribute("checked", option.displayValue);
+                    elem.checked = option.displayValue;
                 }
             }
 
             
-
             rowElem.appendChild(lLabel);
             rowElem.appendChild(rLabel);
             rowElem.appendChild(elem);
             container.appendChild(rowElem);
         }
-        if (!$(container).is(":visible")) {
-            $(container).slideDown();
-        }
-        console.log("Done");
+        $(container).slideDown(400);
     }
 </script>
 </head>
@@ -317,21 +328,21 @@
     	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc2' onclick='lastButtonPressed(this.id)'>Strip 2</button>
 
         <div class='button-collection'>
-            <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)'></button>
-            <button class='preset-button' id='pattern-rainbow-alternate' onclick='chosePreset(this.id)'>
+            <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)' title="Rainbow Fade"></button>
+            <button class='preset-button' id='pattern-rainbow-alternate' onclick='chosePreset(this.id)' title="Reverse Double Fade">
                 <div id='pattern-rainbow-alternate-top'></div>
                 <div id='pattern-rainbow-alternate-bottom'></div>
             </button>
             <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
-            <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)'>?</button>
-            <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)'>
+            <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)' title="Random">?</button>
+            <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)' title="Waves">
                 <span id='pattern-waves-text'></span>
                 <div id='pattern-waves-circle-red' class='pattern-waves-circle'></div>
                 <div id='pattern-waves-circle-green' class='pattern-waves-circle'></div>
                 <div id='pattern-waves-circle-blue' class='pattern-waves-circle'></div>
             </button>
-            <button class='preset-button' id='pattern-moving-fade' onclick='chosePreset(this.id)'></button>
-            <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)'></button>
+            <button class='preset-button' id='pattern-moving-fade' onclick='chosePreset(this.id)' title="Moving Fade"></button>
+            <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)' title="Switch"></button>
         </div>
 
         <div id='config-space'>
