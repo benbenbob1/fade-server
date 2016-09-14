@@ -30,6 +30,7 @@
             if (data.id != 'stop') {
                 choosePreset(data.id, data.config);
             } else {
+                removeConfig();
                 console.log("Got stop pattern message");
             }
         }
@@ -233,7 +234,11 @@
         });
     }
 
-    function removeConfig(container) {
+    function removeConfig() {
+        var container = document.getElementById("config-space");
+        if (!$(container).is(":visible")) {
+            return;
+        }
         $(container).slideUp(400);
         setTimeout(function() {
             $(container).empty();
@@ -243,7 +248,7 @@
     function setupConfig(options) {
         var container = document.getElementById("config-space");
         if (!options) {
-            removeConfig(container);
+            removeConfig();
             return;
         } else if ($(container).is(":visible")) {
             $(container).empty();

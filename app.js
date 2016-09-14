@@ -28,7 +28,7 @@ function moduleAvailable(name) {
 
 var clientSocket, serverSocket;
 var tryNum, socketTimeout, maxTries = 7;
-var patternInterval, patternHue = 0;
+var patternInterval = null, patternHue = 0;
 var pattern = null;
 var chosenColors = [];
 
@@ -162,7 +162,7 @@ function getColors() {
  * @param   Number  h       The hue
  * @param   Number  s       The saturation
  * @param   Number  l       The lightness
- * @return  Array           The RGB representation
+ * @return  Array           The RGB representation [r,g,b]
  */
 function hslToRgb(h, s, l){
     var r, g, b;
@@ -201,31 +201,33 @@ function startPattern(id) {
 
 	pattern = patterns[id];
 	pattern.id = id;
-	var options = pattern.options || null;
-	if (pattern != null && options) {
-		if (pattern.options.interval.defaultValue > 0) {
-			var me = {
-				getColors: getColors,
-				patternHue: patternHue,
-				writeColor: writeColors,
-				writeLEDs: writeLEDs,
-				hslToRgb: hslToRgb,
-				options: pattern.options
-			};
+	var options = pattern.options || {};
+	if (pattern != null && options.interval) {
+		if (options.interval.defaultValue > 0) {
+			var me = {};
 			patternStart = function() { //Start pattern
 				if (pattern.start) {
 					pattern.start.call(me);
 				}
-				if (pattern.options) {
+				if (options) {
 					var item;
-					for (var option in pattern.options) {
-						item = pattern.options[option];
+					for (var option in options) {
+						item = options[option];
 						if (item.defaultValue && typeof item.value === "undefined") {
 							item.value = item.defaultValue;
 						}
 					}
 				}
 			}
+			me = {
+				getColors: getColors,
+				patternHue: patternHue,
+				writeColor: writeColors,
+				writeLEDs: writeLEDs,
+				hslToRgb: hslToRgb,
+				options: options,
+				variables: {}
+			};
 			var justStarted = true;
 			callPattern = function() {
 				if (!patternInterval && !justStarted) { //breaking out is hard to do...
@@ -233,11 +235,12 @@ function startPattern(id) {
 				}
 				justStarted = false;
 				pattern.function.call(me);
-				patternInterval = setTimeout(callPattern, pattern.options.interval.value);
+				patternInterval = setTimeout(callPattern, options.interval.value);
 			}
+			patternStart();
 			callPattern();
 		} else if (pattern.options.interval.defaultValue < 0) {
-			patternInterval = setTimeout(pattern.function, -pattern.options.interval.value);
+			patternInterval = setTimeout(pattern.function, -options.interval.value);
 		} else if (pattern.options.interval.defaultValue === 0) {
 			patternInterval = pattern.function();
 		}

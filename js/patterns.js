@@ -164,6 +164,7 @@ var patterns = {
 				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
 			]);
+			//console.log(this.options.saturation.value);
 			if (!this.options.fade.value) {
 				this.writeColor([
 					[col[0], col[1], col[2]],
@@ -266,8 +267,8 @@ var patterns = {
 				config: __configs.interval_10_500
 			},
 			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
+				displayValue: 100,
+				defaultValue: 1.0,
 				config: __configs.brightness
 			}
 		},
@@ -310,8 +311,8 @@ var patterns = {
 				config: __configs.interval_10_500
 			},
 			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
+				displayValue: 100,
+				defaultValue: 1,
 				config: __configs.brightness
 			}
 		},
@@ -321,9 +322,9 @@ var patterns = {
 			for (var i=0; i<leds; i++) {
 				strip[i] = [0,0,0];
 			}
-			var redPos 	= this.options.redPos  || 0;
-			var greenPos= this.options.greenPos|| 0;
-			var bluePos = this.options.bluePos || 0;
+			var redPos 	= this.variables.redPos  || 0;
+			var greenPos= this.variables.greenPos|| 0;
+			var bluePos = this.variables.bluePos || 0;
 
 			var offset = 0;
 
@@ -345,13 +346,13 @@ var patterns = {
 			}
 
 			if (redPos === 0) {
-				this.options.redPos = 0;
+				this.variables.redPos = 0;
 			}
 			if (greenPos === 0) {
-				this.options.greenPos = 0;
+				this.variables.greenPos = 0;
 			}
 			if (bluePos === 0) {
-				this.options.bluePos = 0;
+				this.variables.bluePos = 0;
 			}
 
 			redPos += 10;
@@ -367,9 +368,9 @@ var patterns = {
 				bluePos -= leds;
 			}
 
-			this.options.redPos = redPos;
-			this.options.greenPos = greenPos;
-			this.options.bluePos = bluePos;
+			this.variables.redPos = redPos;
+			this.variables.greenPos = greenPos;
+			this.variables.bluePos = bluePos;
 		}
 	},
 	'moving-fade': {
@@ -403,7 +404,10 @@ var patterns = {
 
 			var strip = [];
 			for (var led=0; led<30; led++) {
-				var hue = this.patternHue+((led/30))%1;
+				var hue = this.patternHue+((led/30));
+				if (hue >= 1.0) {
+					hue -= 1.0;
+				}
 				var col = this.hslToRgb(hue, this.options.saturation.value, this.options.brightness.value);
 				strip.push(col);
 			}
