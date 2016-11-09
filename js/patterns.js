@@ -398,14 +398,14 @@ var patterns = {
 		},
 		function: function() {
 			this.patternHue += 0.1;
-			if (this.patternHue >= 1.0) {
-				this.patternHue = 0.0;
+			if (this.patternHue > 1.0) {
+				this.patternHue -= 1.0;
 			}
 
 			var strip = [];
 			for (var led=0; led<30; led++) {
 				var hue = this.patternHue+((led/30));
-				if (hue >= 1.0) {
+				if (hue > 1.0) {
 					hue -= 1.0;
 				}
 				var col = this.hslToRgb(hue, this.options.saturation.value, this.options.brightness.value);
