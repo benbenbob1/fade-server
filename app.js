@@ -16,6 +16,10 @@ var numStrips		= 2;
 var stripStatus = [[255,255,255], [255,255,255]];
 
 app.use(bodyParser.json());
+app.use(function(req, res, next) {
+    res.setHeader('Access-Control-Allow-Origin', 'http://benbrown.science'); //allow downloading from benbrown.science
+    next();
+});
 
 function moduleAvailable(name) {
     try {
