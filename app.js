@@ -49,7 +49,7 @@ app.post('/api/endpoint/echo', function(req, res) {
             }
             var colorName = r.intent.slots.Color.value;
             if (colorName) {
-                color = getColorFromCommonName(colorName, type);
+                color = getColorFromCommonName(colorName.split(" ").join(""), type);
             }
         }
     }
