@@ -9,3 +9,11 @@ Run the command 'npm install' from inside the fade-server folder
 
 # Running
 Run the command 'node app.js' from inside the fade-server folder - this command may have to be run as root (hint: try 'sudo' before the command)
+
+# Running on Startup
+The following must be added to /etc/rc.local to get fade-server to run on boot.
+
+'''
+sudo /usr/local/bin/fcserver /usr/local/bin/fcserver.json >/var/log/fcserver.log 2>&1 &
+su pi -c 'node /home/pi/fade-server/app.js  | sudo dd of=/var/log/fade-server.log' &
+'''

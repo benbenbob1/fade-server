@@ -8,9 +8,6 @@ var express			= require('express'),
 
 var patterns 		= require('./js/patterns');
 
-//node app.js 8080
-var port = process.argv[2] || 80;
-
 var maxLedsPerStrip	= 64;
 var ledsPerStrip 	= 30;
 var numStrips		= 2;
@@ -39,6 +36,7 @@ app.post('/api/color', function(req, res) {
     res.send([r, g, b].join(", "));
 });
 
+/*
 //Callback contains a dict of options if available
 function getOptions(callback) {
     var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
@@ -72,10 +70,50 @@ getOptions(function(dict) {
         tls.createServer(dict, function(res) {
             tryNum = 1;
             connectSocket();
-            res.pipe(res);
             console.log("Fade-server is listening (HTTPS) on port "+port);
         }).listen(port);
     }
+    //
+    console.log("Using HTTPS/TLS with options",dict);
+    var server = require('https').Server(dict, app);
+    server.listen(port, function() {
+        tryNum = 1;
+        connectSocket();
+        console.log("Fade-server is listening (HTTPS) on port "+port);
+    });
+});
+*/
+
+var serverOptions = (function(){
+    var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
+    var certFile = "/etc/letsencrypt/live/rpi.student.rit.edu/fullchain.pem";
+    try {
+        var kContents = fs.readFileSync(keyFile, 'utf8');
+        var cContents = fs.readFileSync(certFile, 'utf8');
+        return {
+            key: kContents,
+            cert: cContents
+        }
+    } catch (ex) {
+        return {}
+    }
+})();
+
+//node app.js 8080
+var port = process.argv[2] || 80;
+
+if (!serverOptions.key) {
+    console.log("Private/Public key files not found. Reverting to HTTP.");
+    server = require('http').Server(app);
+} else {
+    port = 443;
+    console.log("Using HTTPS/TLS with options", serverOptions);
+    server = require('https').Server(serverOptions, app);
+}
+server.listen(port, function() {
+    tryNum = 1;
+    connectSocket();
+    console.log("Fade-server is listening on port "+port);
 });
 
 function moduleAvailable(name) {
@@ -85,7 +123,6 @@ function moduleAvailable(name) {
     } catch(e){}
     return false;
 }
-
 
 var clientSocket, serverSocket;
 var tryNum, socketTimeout = null, maxTries = 7;
