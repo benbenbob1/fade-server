@@ -55,6 +55,7 @@ app.post('/api/endpoint/echo', function(req, res) {
     }
     if (color) {
         _writeColor(color.r, color.g, color.b, [0,1]);
+        _writeColor(color.r, color.g, color.b, [0,1]);
         broadcastColor();
         res.send([color.r, color.g, color.b].join(", "));
     } else {
