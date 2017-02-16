@@ -101,13 +101,12 @@ var serverOptions = (function(){
 
 //node app.js 8080
 var port = process.argv[2] || 80;
-
 if (!serverOptions.key) {
     console.log("Private/Public key files not found. Reverting to HTTP.");
     server = require('http').Server(app);
 } else {
     port = 443;
-    console.log("Using HTTPS/TLS with options", serverOptions);
+    console.log("Using HTTPS/TLS with cert.");
     server = require('https').Server(serverOptions, app);
 }
 server.listen(port, function() {
