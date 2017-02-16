@@ -57,20 +57,19 @@ app.post('/api/endpoint/echo', function(req, res) {
         "version": "1.0",
         "sessionAttributes": {},
         "response": {
-        "outputSpeech": {
-          "type": "PlainText",
-          "text": ""
-        },
-        "shouldEndSession": true
+            "outputSpeech": {
+              "type": "PlainText",
+              "text": ""
+            }
         }
-    }
+    };
     if (color) {
         _writeColor(color.r, color.g, color.b, [0,1]);
         _writeColor(color.r, color.g, color.b, [0,1]);
         broadcastColor();
-        output.outputSpeech.text = "Color set to '"+colorName+"'";
+        output.response.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
-        output.outputSpeech.text = "I could not find '"+colorName+"'";
+        output.response.outputSpeech.text = "I could not find '"+colorName+"'";
     }
     res.send(output);
 });
