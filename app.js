@@ -7,7 +7,8 @@ var express			= require('express'),
 
 var patterns 		= require('./js/patterns');
 
-var port = process.env.PORT || 8080;
+//node app.js 8080
+var port = process.argv[2] || 80;
 
 var maxLedsPerStrip	= 64;
 var ledsPerStrip 	= 30;
