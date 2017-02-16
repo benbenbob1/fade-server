@@ -139,6 +139,15 @@ app.get('/', function(req, res) {
 	res.sendFile(__dirname + '/page.html');
 });
 
+app.post('/api/color', function(req, res) {
+    var r = req.body['red']   || 0;
+    var g = req.body['green'] || 0;
+    var b = req.body['blue']  || 0;
+    _writeColor(r, g, b, [0,1]);
+    broadcastColor();
+    res.send([r, g, b].join(", "));
+});
+
 server.listen(port, function() {
 	tryNum = 1;
 	connectSocket();
@@ -329,6 +338,7 @@ function writeLEDs(arr, onestrip) {
     return true;
 }
 
+//r/g/b out of 255
 function _writeColor(r, g, b, strip) {
 	if (Array.isArray(strip)) {
 		for (var i=0; i<strip.length; i++) {
