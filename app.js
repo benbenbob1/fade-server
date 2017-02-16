@@ -1,6 +1,7 @@
 var express			= require('express'),
+    tls             = require('tls'),
+    fs              = require('fs'),
 	app 			= express(),
-	server 			= require('http').Server(app),
 	WebSocketClient	= require('ws'),
 	WebSocketServer	= require('socket.io'),
 	bodyParser		= require('body-parser');
@@ -21,6 +22,61 @@ app.use(function(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', 'http://benbrown.science'); //allow downloading from benbrown.science
     next();
 });
+app.use('/js', express.static(__dirname + '/js'));
+app.use('/js/socketio', express.static(__dirname + "/node_modules/socket.io-client/"));
+app.use('/assets', express.static(__dirname + '/assets'));
+
+app.get('/', function(req, res) {
+    res.sendFile(__dirname + '/page.html');
+});
+
+app.post('/api/color', function(req, res) {
+    var r = req.body['red']   || 0;
+    var g = req.body['green'] || 0;
+    var b = req.body['blue']  || 0;
+    _writeColor(r, g, b, [0,1]);
+    broadcastColor();
+    res.send([r, g, b].join(", "));
+});
+
+//Callback contains a dict of options if available
+function getOptions(callback) {
+    var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
+    var certFile = "/etc/letsencrypt/live/rpi.student.rit.edu/fullchain.pem";
+    fs.readFile(keyFile, function(err, data) {
+        if (err) return callback({});
+        var key = data.toString();
+        fs.readFile(certFile, function(err, data) {
+            if (err) return callback({});
+            var cert = data.toString();
+            callback({
+                key: key,
+                cert: cert
+            });
+        });
+    });
+}
+
+getOptions(function(dict) {
+    if (!dict.key) {
+        console.log("Private/Public key files not found. Reverting to HTTP.");
+        server = require('http').Server(app);
+        server.listen(port, function() {
+            tryNum = 1;
+            connectSocket();
+            console.log("Fade-server is listening (HTTP) on port "+port);
+        });
+    } else {
+        console.log("Using HTTPS/TLS");
+        server = require('https').Server(app);
+        tls.createServer(dict, function(res) {
+            tryNum = 1;
+            connectSocket();
+            res.pipe(res);
+            console.log("Fade-server is listening (HTTPS) on port "+port);
+        }).listen(port);
+    }
+});
 
 function moduleAvailable(name) {
     try {
@@ -32,7 +88,7 @@ function moduleAvailable(name) {
 
 
 var clientSocket, serverSocket;
-var tryNum, socketTimeout, maxTries = 7;
+var tryNum, socketTimeout = null, maxTries = 7;
 var patternInterval = null, patternHue = 0;
 var pattern = null;
 var chosenColors = [];
@@ -43,6 +99,7 @@ function log(text) {
 
 function socketErr() {
 	clearTimeout(socketTimeout);
+    socketTimeout = null;
 	if (tryNum > maxTries) {
 		console.log("Websocket failed to open after "+maxTries+" attempts. Exiting...");
 		process.exit();
@@ -131,29 +188,6 @@ function broadcastColor(socket) {
 	}
 	
 }
-
-app.use('/js', express.static(__dirname + '/js'));
-app.use('/js/socketio', express.static(__dirname + "/node_modules/socket.io-client/"));
-app.use('/assets', express.static(__dirname + '/assets'));
-
-app.get('/', function(req, res) {
-	res.sendFile(__dirname + '/page.html');
-});
-
-app.post('/api/color', function(req, res) {
-    var r = req.body['red']   || 0;
-    var g = req.body['green'] || 0;
-    var b = req.body['blue']  || 0;
-    _writeColor(r, g, b, [0,1]);
-    broadcastColor();
-    res.send([r, g, b].join(", "));
-});
-
-server.listen(port, function() {
-	tryNum = 1;
-	connectSocket();
-	console.log("Fade-server is listening on port "+port);
-});
 
 function getColors() {
 	var colorArr = [];
