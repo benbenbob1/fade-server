@@ -53,14 +53,26 @@ app.post('/api/endpoint/echo', function(req, res) {
             }
         }
     }
+    var output = {
+        "version": "1.0",
+        "sessionAttributes": {},
+        "response": {
+        "outputSpeech": {
+          "type": "PlainText",
+          "text": ""
+        },
+        "shouldEndSession": true
+        }
+    }
     if (color) {
         _writeColor(color.r, color.g, color.b, [0,1]);
         _writeColor(color.r, color.g, color.b, [0,1]);
         broadcastColor();
-        res.send([color.r, color.g, color.b].join(", "));
+        output.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
-        res.send(false);
+        output.outputSpeech.text = "I could not find '"+colorName+"'";
     }
+    res.send(output);
 });
 
 var serverOptions = (function(){
