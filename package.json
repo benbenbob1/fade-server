@@ -6,6 +6,7 @@
   "homepage": "http://benbrown.science",
   "dependencies": {
     "body-parser": "^1.14.2",
+    "color-namer": "^1.1.0",
     "express": "^4.13.4",
     "fs": "0.0.1-security",
     "http": "0.0.0",

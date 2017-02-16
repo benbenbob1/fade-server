@@ -2,6 +2,7 @@ var express			= require('express'),
     tls             = require('tls'),
     fs              = require('fs'),
 	app 			= express(),
+    colorNamer      = require('color-namer'),
 	WebSocketClient	= require('ws'),
 	WebSocketServer	= require('socket.io'),
 	bodyParser		= require('body-parser');
@@ -36,53 +37,29 @@ app.post('/api/color', function(req, res) {
     res.send([r, g, b].join(", "));
 });
 
-/*
-//Callback contains a dict of options if available
-function getOptions(callback) {
-    var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
-    var certFile = "/etc/letsencrypt/live/rpi.student.rit.edu/fullchain.pem";
-    fs.readFile(keyFile, function(err, data) {
-        if (err) return callback({});
-        var key = data.toString();
-        fs.readFile(certFile, function(err, data) {
-            if (err) return callback({});
-            var cert = data.toString();
-            callback({
-                key: key,
-                cert: cert
-            });
-        });
-    });
-}
-
-getOptions(function(dict) {
-    if (!dict.key) {
-        console.log("Private/Public key files not found. Reverting to HTTP.");
-        server = require('http').Server(app);
-        server.listen(port, function() {
-            tryNum = 1;
-            connectSocket();
-            console.log("Fade-server is listening (HTTP) on port "+port);
-        });
-    } else {
-        console.log("Using HTTPS/TLS");
-        server = require('https').Server(app);
-        tls.createServer(dict, function(res) {
-            tryNum = 1;
-            connectSocket();
-            console.log("Fade-server is listening (HTTPS) on port "+port);
-        }).listen(port);
+app.post('/api/endpoint/echo', function(req, res) {
+    var r = req.body.request;
+    var color = null;
+    if (r && r.type == "IntentRequest") {
+        if (r.intent.name == "SetColor") {
+            var slots = r.intent.slots;
+            var colorName = slots.Color.value;
+            if (colorName) {
+                color = getColorFromCommonName(
+                    colorName, 
+                    slots.Type.value || null
+                );
+            }
+        }
     }
-    //
-    console.log("Using HTTPS/TLS with options",dict);
-    var server = require('https').Server(dict, app);
-    server.listen(port, function() {
-        tryNum = 1;
-        connectSocket();
-        console.log("Fade-server is listening (HTTPS) on port "+port);
-    });
+    if (color) {
+        _writeColor(color.r, color.g, color.b, [0,1]);
+        broadcastColor();
+        res.send([color.r, color.g, color.b].join(", "));
+    } else {
+        res.send(false);
+    }
 });
-*/
 
 var serverOptions = (function(){
     var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
@@ -235,6 +212,45 @@ function getColors() {
 		]);
 	}
 	return colorArr;
+}
+
+//{r: 0-255, g: 0-255, b: 0-255} or null
+/**
+ * Converts a color name into discrete r, g, b values using color-namer
+ * https://www.npmjs.com/package/color-namer
+ * Hex to RGB taken from:
+ * http://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+ *
+ * @param   colorName   Query to try
+ * @param   type        One of roygbiv, basic, html, x11, pantone, 
+ *                      or ntc (default)
+ * @return  {r: 0-255, g: 0-255, b: 0-255} or null
+ */
+function getColorFromCommonName(colorName, type) {
+    function hexToRgb(hex) {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+    try {
+        var name = colorNamer(colorName);
+        var col = {};
+        if (!type) {
+            type = "ntc";
+        }
+        col = name[type][0]
+        console.log("Running "+colorName+"["+type+"][0]", col)
+        var rgb = hexToRgb(col.hex);
+        if (rgb) {
+            return rgb
+        }
+    } catch (e) {
+        console.log("Err: Unknown color '"+colorName+"'")
+    }
+    return null;
 }
 
 /**
