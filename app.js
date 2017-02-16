@@ -43,12 +43,13 @@ app.post('/api/endpoint/echo', function(req, res) {
     if (r && r.type == "IntentRequest") {
         if (r.intent.name == "SetColor") {
             var slots = r.intent.slots;
-            var colorName = slots.Color.value;
+            var type = null
+            if (slots.Type) {
+                type = slots.Type.value;
+            }
+            var colorName = r.intent.slots.Color.value;
             if (colorName) {
-                color = getColorFromCommonName(
-                    colorName, 
-                    slots.Type.value || null
-                );
+                color = getColorFromCommonName(colorName, type);
             }
         }
     }
