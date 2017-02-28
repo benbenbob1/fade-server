@@ -174,7 +174,7 @@ function colorUpdated(picker) {
     color.strip = [];
 
     if (colorsLocked) {
-        color.strip = [0, 1];
+        color.strip = [0, 1, 2];
         post(color);
     } else {
         switch (lastButtonPressedId) {
@@ -281,20 +281,20 @@ function setupConfig(options) {
                 rangeSet(event.target);
             });
 
-            if (option.displayValue != null) {
-                elem.setAttribute("value", option.displayValue);
-            }
-
             if (config.input.range != null) {
                 elem.setAttribute("min", config.input.range.min);
                 elem.setAttribute("max", config.input.range.max);
             }
+
+            if (option.displayValue != null) {
+                $(elem).val(option.displayValue);
+            }
+
         } else if (config.input.type == "checkbox") {
             elem.addEventListener("change", function(event) {
                 checkboxSet(event.target);
             });
             if (option.displayValue != null) {
-                //elem.setAttribute("checked", option.displayValue);
                 elem.checked = option.displayValue;
             }
         }
