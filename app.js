@@ -2,6 +2,7 @@ var express			= require('express'),
     tls             = require('tls'),
     fs              = require('fs'),
 	app 			= express(),
+    http            = require('http'),
     colorNamer      = require('color-namer'),
 	WebSocketClient	= require('ws'),
 	WebSocketServer	= require('socket.io'),
@@ -102,8 +103,14 @@ var serverOptions = (function(){
 var port = process.argv[2] || 80;
 if (!serverOptions.key) {
     console.log("Private/Public key files not found. Reverting to HTTP.");
-    server = require('http').Server(app);
+    server = http.Server(app);
 } else {
+    //Redirect all incoming HTTP traffic
+    http.createServer(function (req, res) {
+        res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+        res.end();
+    }).listen(port);
+    
     port = 443;
     console.log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
