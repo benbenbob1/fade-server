@@ -14,6 +14,7 @@ var maxLedsPerStrip	= 64;
 var ledsPerStrip 	= 30;
 var numStrips		= 2;
 var numOneColorStrips = 1;
+var socketReady = true;
 
 var stripStatus = [[255,255,255], [255,255,255], [255,255,255]];
 
@@ -110,7 +111,7 @@ if (!serverOptions.key) {
         res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
         res.end();
     }).listen(port);
-    
+
     port = 443;
     console.log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
@@ -142,6 +143,7 @@ function log(text) {
 function socketErr() {
 	clearTimeout(socketTimeout);
     socketTimeout = null;
+    socketReady = false;
 	if (tryNum > maxTries) {
 		console.log(
             "Websocket failed to open after "
@@ -159,12 +161,16 @@ function socketErr() {
 		}
 		console.log("Websocket failed to open. Retrying in "+retryTime+"...");
 		socketTimeout = setTimeout(function() {
+            socketReady = true;
 			connectSocket();
 		}, numSec*1000);
 	}
 }
 
 function connectSocket() {
+    if (!socketReady) {
+        return;
+    }
 	var addr = 'ws://127.0.0.1:7890';
 	//var addr = 'ws://rpi.student.rit.edu:7890';
 	console.log("Connecting websocket to "+addr)
@@ -177,6 +183,7 @@ function connectSocket() {
 
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
+        socketReady = true;
 		log("Socket connected "+socket);
 		socket.join('color');
 		if (pattern != null) {
@@ -422,7 +429,7 @@ function writeLEDs(arr, onestrip) {
 	//log("Writing leds to "+ arr.length +" strips");
 	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * arr.length) * 3);
 
-    if (clientSocket.readyState != 1 ) { //if socket is not open
+    if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
         console.log("socket err! attempting to reconnect...");
         tryNum = 1;
@@ -485,42 +492,7 @@ function _writeColor(r, g, b, strip) {
         writeOneColorStrip([r,g,b]);
     }
 
-	//console.log("Writing "+JSON.stringify(stripStatus));
-	//return;
-
-	//serverSocket.to('color').emit('color', stripStatus);
-
-    var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
-
-    if (clientSocket.readyState != 1 ) { //if socket is not open
-        // The server connection isn't open. Nothing to do.
-        console.log("socket err! attempting to reconnect...");
-        tryNum = 1;
-        connectSocket();
-        return false;
-    }
-
-    if (clientSocket.bufferedAmount > packet.length) {
-        // The network is lagging, and we still haven't sent the previous frame.
-        // Don't flood the network, it will just make us laggy.
-        // If fcserver is running on the same computer, it should always be able
-        // to keep up with the frames we send, so we shouldn't reach this point.
-        return;
-    }
-
-    // Dest position in our packet. Start right after the header.
-    var dest = 4;
-
-    // Sample the center pixel of each LED
-    var stripNo = 0;
-    for (var led = 0; led < (maxLedsPerStrip * numStrips); led++) {
-    	stripNo = Math.floor(led / maxLedsPerStrip);
-        packet[dest++] = stripStatus[stripNo][0];
-        packet[dest++] = stripStatus[stripNo][1];
-        packet[dest++] = stripStatus[stripNo][2];
-    }
-    
-    clientSocket.send(packet.buffer);
+    writeLEDs(stripStatus, false);
 
     return true;
 }
