@@ -12,17 +12,22 @@ var patterns 		= require('./js/patterns');
 var maxLedsPerStrip	= 64;
 var ledsPerStrip 	= 30;
 var numStrips		= 2;
+var numOneColorStrips = 1;
 
-var stripStatus = [[255,255,255], [255,255,255]];
+var stripStatus = [[255,255,255], [255,255,255], [255,255,255]];
 
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
-    res.setHeader('Access-Control-Allow-Origin', 'http://benbrown.science'); //allow downloading from benbrown.science
+    //allow downloading from benbrown.science
+    res.setHeader('Access-Control-Allow-Origin', 'http://benbrown.science'); 
     next();
 });
-app.use('/js', express.static(__dirname + '/js'));
-app.use('/js/socketio', express.static(__dirname + "/node_modules/socket.io-client/"));
-app.use('/assets', express.static(__dirname + '/assets'));
+app.use('/js',
+    express.static(__dirname + '/js'));
+app.use('/js/socketio', 
+    express.static(__dirname + "/node_modules/socket.io-client/"));
+app.use('/assets',
+    express.static(__dirname + '/assets'));
 
 app.get('/', function(req, res) {
     res.sendFile(__dirname + '/page.html');
@@ -32,7 +37,8 @@ app.post('/api/color', function(req, res) {
     var r = req.body['red']   || 0;
     var g = req.body['green'] || 0;
     var b = req.body['blue']  || 0;
-    _writeColor(r, g, b, [0,1]);
+    endPattern();
+    _writeColor(r, g, b, [0,1,2]);
     broadcastColor();
     res.send([r, g, b].join(", "));
 });
@@ -49,7 +55,9 @@ app.post('/api/endpoint/echo', function(req, res) {
             }
             var colorName = r.intent.slots.Color.value;
             if (colorName) {
-                color = getColorFromCommonName(colorName.split(" ").join(""), type);
+                color = getColorFromCommonName(
+                    colorName.split(" ").join(""), type
+                );
             }
         }
     }
@@ -64,8 +72,9 @@ app.post('/api/endpoint/echo', function(req, res) {
         }
     };
     if (color) {
-        _writeColor(color.r, color.g, color.b, [0,1]);
-        _writeColor(color.r, color.g, color.b, [0,1]);
+        endPattern();
+        _writeColor(color.r, color.g, color.b, [0,1,2]);
+        _writeColor(color.r, color.g, color.b, [0,1,2]);
         broadcastColor();
         output.response.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
@@ -96,7 +105,7 @@ if (!serverOptions.key) {
     server = require('http').Server(app);
 } else {
     port = 443;
-    console.log("Using HTTPS/TLS with cert.");
+    console.log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
 }
 server.listen(port, function() {
@@ -127,7 +136,11 @@ function socketErr() {
 	clearTimeout(socketTimeout);
     socketTimeout = null;
 	if (tryNum > maxTries) {
-		console.log("Websocket failed to open after "+maxTries+" attempts. Exiting...");
+		console.log(
+            "Websocket failed to open after "
+            + maxTries
+            + " attempts. Exiting..."
+        );
 		process.exit();
 	}
 	else {
@@ -179,7 +192,9 @@ function connectSocket() {
 			} else if ('id' in data) {
 				startPattern(data.id);
 			} else if ('config' in data) {
-				if (pattern && pattern.options && pattern.options[data.config]) {
+				if (pattern 
+                    && pattern.options
+                    && pattern.options[data.config]) {
 					var input = pattern.options[data.config].config.input;
 					if (input && typeof input.update !== undefined) {
 						pattern.options[data.config].displayValue = data.value;
@@ -327,7 +342,8 @@ function startPattern(id) {
 					var item;
 					for (var option in options) {
 						item = options[option];
-						if (item.defaultValue && typeof item.value === "undefined") {
+						if (item.defaultValue 
+                            && typeof item.value === "undefined") {
 							item.value = item.defaultValue;
 						}
 					}
@@ -344,17 +360,20 @@ function startPattern(id) {
 			};
 			var justStarted = true;
 			callPattern = function() {
-				if (!patternInterval && !justStarted) { //breaking out is hard to do...
+				if (!patternInterval && !justStarted) {
+                    //breaking out is hard to do...
 					return;
 				}
 				justStarted = false;
 				pattern.function.call(me);
-				patternInterval = setTimeout(callPattern, options.interval.value);
+				patternInterval = setTimeout(callPattern, 
+                    options.interval.value);
 			}
 			patternStart();
 			callPattern();
 		} else if (pattern.options.interval.defaultValue < 0) {
-			patternInterval = setTimeout(pattern.function, -options.interval.value);
+			patternInterval = setTimeout(pattern.function, 
+                -options.interval.value);
 		} else if (pattern.options.interval.defaultValue === 0) {
 			patternInterval = pattern.function();
 		}
@@ -390,7 +409,8 @@ function writeColors(colors) {
 	writeLEDs(leds, false);
 }
 
-//[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]] or array of rgb if onestrip is true
+//[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
+//  or array of rgb if onestrip is true
 function writeLEDs(arr, onestrip) {
 	//log("Writing leds to "+ arr.length +" strips");
 	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * arr.length) * 3);
@@ -438,6 +458,12 @@ function writeLEDs(arr, onestrip) {
     return true;
 }
 
+//For writing to a non-fadecandy strip
+//color = [r,g,b]
+function writeOneColorStrip(color) {
+    console.log("Writing to "+numOneColorStrips+" strips");
+}
+
 //r/g/b out of 255
 function _writeColor(r, g, b, strip) {
 	if (Array.isArray(strip)) {
@@ -448,12 +474,16 @@ function _writeColor(r, g, b, strip) {
 		stripStatus[strip] = [r,g,b];
 	}
 
+    if (stripStatus.length >= numStrips) {
+        writeOneColorStrip([r,g,b]);
+    }
+
 	//console.log("Writing "+JSON.stringify(stripStatus));
 	//return;
 
 	//serverSocket.to('color').emit('color', stripStatus);
 
-    var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * stripStatus.length) * 3);
+    var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
 
     if (clientSocket.readyState != 1 ) { //if socket is not open
         // The server connection isn't open. Nothing to do.
@@ -476,7 +506,7 @@ function _writeColor(r, g, b, strip) {
 
     // Sample the center pixel of each LED
     var stripNo = 0;
-    for (var led = 0; led < (maxLedsPerStrip * stripStatus.length); led++) {
+    for (var led = 0; led < (maxLedsPerStrip * numStrips); led++) {
     	stripNo = Math.floor(led / maxLedsPerStrip);
         packet[dest++] = stripStatus[stripNo][0];
         packet[dest++] = stripStatus[stripNo][1];

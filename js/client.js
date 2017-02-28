@@ -8,6 +8,23 @@ console.log("Socket connected to",loc)
 var curFade = '';
 var reachable = false;
 
+$(document).ready(function() {
+    colorsLocked = localStorage.getItem('locked');
+
+    if (colorsLocked === 'false') {
+        colorsLocked = true;
+        //Reverse so the function will act naturally
+    } else {
+        colorsLocked = false;
+    }
+
+    buttons = $(".strip-button");
+
+    disableButtons(true);
+
+    lockIconClicked();
+});
+
 
 socket.on('color', function(data) {
     //console.log('Rec: '+JSON.stringify(data));
@@ -38,21 +55,21 @@ socket.on('disconnect', function() {
 
 socket.on('error', function(err) {
     reachable = false;
-    console.err(err);
+    disableButtons(true);
+    console.log(err);
 });
 
 function disableButtons(enabled) {
-    if (!buttons) {
-        buttons = $("button.jscolor");
-    }
     if (enabled) {
         buttons.each(function(idx) {
             $(this).addClass("offline");
+            $(this).addClass("button-disabled");
             $(this).prop("disabled", true);
         })
     } else {
         buttons.each(function(idx) {
             $(this).removeClass("offline");
+            $(this).removeClass("button-disabled");
             $(this).prop("disabled", false);
         })
     }
@@ -67,21 +84,6 @@ function setLocalColor(strip, color) {
     //$('#'+elem).prop('value', rgbToHex(color[0], color[1], color[2]));
     $('#'+elem).css('color', getTextColorForBackground(color[0], color[1], color[2]));
 }
-
-$(document).ready(function() {
-    colorsLocked = localStorage.getItem('locked');
-
-    if (colorsLocked === 'false') {
-        colorsLocked = true;
-        //Reverse so the function will act naturally
-    } else {
-        colorsLocked = false;
-    }
-
-    disableButtons(false);
-
-    lockIconClicked();
-});
 
 var bufferOpen = true;
 function post(data) {
@@ -101,10 +103,21 @@ function lockIconClicked() {
 
     colorsLocked = !colorsLocked;
     $('#lock-strips').attr('src', '/assets/'+(colorsLocked?locked:unlocked));
-    $('#cc2').prop('disabled', colorsLocked);
-    $('#cc2').css('top', (colorsLocked?-30:30)+'px');
-
+    var notFirst = $(".strip-button:gt(0)");
+    notFirst.prop('disabled', colorsLocked);
+    var z = 9;
+    for (var i=0; i<notFirst.length; i++) {
+        notFirst[i].style.zIndex = z--;
+    }
+    
     localStorage.setItem('locked', colorsLocked);
+
+    var cls = "button-locked";
+    if (colorsLocked) {
+        buttons.addClass(cls);
+    } else {
+        buttons.removeClass(cls);
+    }
 }
 
 function deselectPreset() {
@@ -170,6 +183,9 @@ function colorUpdated(picker) {
                 break;
             case 'cc2':
                 color.strip = 1;
+                break;
+            case 'cc3':
+                color.strip = 2;
                 break;
             default:
                 color.strip = 0;

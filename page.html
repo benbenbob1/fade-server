@@ -11,41 +11,47 @@
 <script src='/js/client.js'></script>
 </head>
 <body>
-<h1>Choose a color</h1>
-<div id='main'>
-	<div class='flexible-space'>
-		<img id='lock-strips' onclick='lockIconClicked()' title='Locks the color strips to the same color' src=''>
-	</div>
+<div id='container'>
+    <h1>Choose a color</h1>
+    <div id='main'>
+    	<div class='flexible-space'>
+    		<img id='lock-strips' onclick='lockIconClicked()' title='Locks the color strips to the same color' src=''>
+    	</div>
 
-	<div class='strips'>
-    	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc1' onclick='lastButtonPressed(this.id)'>Strip 1</button>
-    
-    	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc2' onclick='lastButtonPressed(this.id)'>Strip 2</button>
+    	<div class='strips'>
+            <div id='strip-buttons'>
+            	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc1' onclick='lastButtonPressed(this.id)'>Strip 1</button>
+            
+            	<button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc2' onclick='lastButtonPressed(this.id)'>Strip 2</button>
 
-        <div class='button-collection'>
-            <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)' title="Rainbow Fade"></button>
-            <button class='preset-button' id='pattern-rainbow-alternate' onclick='chosePreset(this.id)' title="Reverse Double Fade">
-                <div id='pattern-rainbow-alternate-top'></div>
-                <div id='pattern-rainbow-alternate-bottom'></div>
-            </button>
-            <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
-            <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)' title="Random">?</button>
-            <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)' title="Waves">
-                <span id='pattern-waves-text'></span>
-                <div id='pattern-waves-circle-red' class='pattern-waves-circle'></div>
-                <div id='pattern-waves-circle-green' class='pattern-waves-circle'></div>
-                <div id='pattern-waves-circle-blue' class='pattern-waves-circle'></div>
-            </button>
-            <button class='preset-button' id='pattern-moving-fade' onclick='chosePreset(this.id)' title="Moving Fade"></button>
-            <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)' title="Switch"></button>
-        </div>
+                <button class='strip-button jscolor {width: 225, position:"center", valueElement:null, styleElement:null, onFineChange:"colorUpdated(this)"}' id='cc3' onclick='lastButtonPressed(this.id)'>Strip 3</button>
+            </div>
 
-        <div id='config-space'>
-        </div>
-	</div>
+            <div class='button-collection'>
+                <button class='preset-button' id='pattern-rainbow-fade' onclick='chosePreset(this.id)' title="Rainbow Fade"></button>
+                <button class='preset-button' id='pattern-rainbow-alternate' onclick='chosePreset(this.id)' title="Reverse Double Fade">
+                    <div id='pattern-rainbow-alternate-top'></div>
+                    <div id='pattern-rainbow-alternate-bottom'></div>
+                </button>
+                <!--<button class='preset-button' id='pattern-music-hue' onclick='chosePreset(this.id)'>♫</button>-->
+                <button class='preset-button' id='pattern-random' onclick='chosePreset(this.id)' title="Random">?</button>
+                <button class='preset-button' id='pattern-waves' onclick='chosePreset(this.id)' title="Waves">
+                    <span id='pattern-waves-text'></span>
+                    <div id='pattern-waves-circle-red' class='pattern-waves-circle'></div>
+                    <div id='pattern-waves-circle-green' class='pattern-waves-circle'></div>
+                    <div id='pattern-waves-circle-blue' class='pattern-waves-circle'></div>
+                </button>
+                <button class='preset-button' id='pattern-moving-fade' onclick='chosePreset(this.id)' title="Moving Fade"></button>
+                <button class='preset-button' id='pattern-switch' onclick='chosePreset(this.id)' title="Switch"></button>
+            </div>
 
-	<div class='flexible-space'>
-	</div>
+            <div id='config-space'>
+            </div>
+    	</div>
+
+    	<div class='flexible-space'>
+    	</div>
+    </div>
 </div>
 </body>
 </html>

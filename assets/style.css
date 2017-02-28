@@ -1,12 +1,25 @@
 html {
+    height: 80%;
+    overflow: scroll;
 }
 
 body {
+    height: 100%;
     background: #666;
     color: #ddd;
     font-size: 15px;
     font-family: 'Montserrat', sans-serif;
     text-align: center;
+}
+
+#container {
+    top: 50%;
+    display: block;
+    position: relative;
+    transform: translateY(-40%);
+
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 h1 {
@@ -17,22 +30,32 @@ button {
     cursor: pointer;
 }
 
-button.jscolor.offline:hover {
-    cursor: default;
+#strip-buttons:hover .button-locked {
     margin-top: 3px;
-    margin-bottom: -2px;
+    box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
+}
+
+button.jscolor.button-locked {
+    margin-bottom: -30px;
+}
+button.jscolor.button-locked:not(:first-child) {
+    margin-top: -30px;
+}
+
+button.jscolor.button-locked:hover {
+    margin-bottom: -30px;
+    box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
 }
 
 button.jscolor:hover {
     cursor: pointer;
 	box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
 	margin-top: 3px;
-    margin-bottom: -3px;
+    margin-bottom: 27px;
 }
 
-.jscolor:focus {
-    margin-top: 3px;
-    margin-bottom: -3px;
+button.jscolor {
+    margin-bottom: 30px;
 }
 
 button:focus {
@@ -40,18 +63,19 @@ button:focus {
 }
 
 button.jscolor:focus {
+    margin-top: 6px;
+    margin-bottom: 24px;
 	box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
 }
 
 button:disabled {
     box-shadow: none;
-    margin-top: 3px;
-    margin-bottom: -2px;
-    background-color: darkgrey;
+    margin-top: 0px;
+    background-color: darkgrey !important;
 }
 
 button.jscolor {
-	transition: 0.05s linear all;
+	transition: 0.06s ease-in all;
     border-radius: 5px;
     border: none;
     box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
@@ -90,11 +114,11 @@ button.jscolor.offline {
 }
 
 .jscolor:first-child {
-	z-index: 1;
+	z-index: 10;
 }
 
 .jscolor:nth-child(n+2) {
-	z-index: 0;
+	z-index: 9;
     width: 2
 }
 
