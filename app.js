@@ -19,7 +19,7 @@ var socketReady = true;
 var PIBLASTER_DEV = '/dev/pi-blaster';
 var piblaster = null;
 fs.stat(PIBLASTER_DEV, function(err, stats) {
-    if (stats && stats.isFile()) {
+    if (stats) {
         piblaster = fs.createWriteStream(PIBLASTER_DEV);
         piblaster.on('error', function(err) {
             console.log("Error with piblaster stream", err);
@@ -499,7 +499,7 @@ function writeLEDs(arr, onestrip) {
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
 function writeOneColorStrip(color) {
-    //console.log("Writing to "+numOneColorStrips+" strips");
+    console.log("Writing to "+numOneColorStrips+" strips");
     var red = color[0]/255.0;
     var green = color[1]/255.0;
     var blue = color[2]/255.0;
@@ -507,6 +507,7 @@ function writeOneColorStrip(color) {
         return pin+"="+value;
     }
     if (piblaster) {
+        console.log("writing...");
         piblaster.write(write(ledPins.red, red));
         piblaster.write(write(ledPins.green, green));
         piblaster.write(write(ledPins.blue, blue));
