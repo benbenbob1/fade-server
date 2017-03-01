@@ -200,9 +200,9 @@ function connectSocket() {
 
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
-        var connAddr = socket.handshake.address;
+        var connAddr = socket.request.connection.remoteAddress;
         socketReady = true;
-		log("Socket connected "+connAddr.address+":"+connAddr.port);
+		log("Socket connected "+connAddr);
 		socket.join('color');
 		if (pattern != null) {
 			socket.emit('color', {
@@ -481,7 +481,7 @@ function writeLEDs(arr, onestrip) {
     	}
     } else {
     	for (var strip = 0; strip < arr.length; strip++) {
-	    	log("Strip ("+strip+") has "+arr[strip].length+" leds");
+	    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
 	    	for (var led = 0; led < arr[strip].length; led++) {
 	    		packet[dest++] = arr[strip][led][0];
 	    		packet[dest++] = arr[strip][led][1];
@@ -499,7 +499,7 @@ function writeLEDs(arr, onestrip) {
 
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
-function writeOneColorStrip(color) {
+function writeOneColorStrip(colors) {
     log("Writing to "+numOneColorStrips+" strips");
     var red = color[0]/255.0;
     var green = color[1]/255.0;
@@ -525,7 +525,7 @@ function _writeColor(r, g, b, strip) {
 	}
 
     if (stripStatus.length >= numStrips) {
-        writeOneColorStrip([r,g,b]);
+        writeOneColorStrip(stripStatus.slice(numStrips)[0]);
     }
 
     var toWrite = stripStatus.slice(0,numStrips);
