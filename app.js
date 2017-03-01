@@ -22,7 +22,7 @@ fs.stat(PIBLASTER_DEV, function(err, stats) {
     if (stats) {
         piblaster = fs.createWriteStream(PIBLASTER_DEV);
         piblaster.on('error', function(err) {
-            console.log("Error with piblaster stream", err);
+            log("Error with piblaster stream", err);
         })
     }
 });
@@ -120,7 +120,7 @@ var serverOptions = (function(){
 //node app.js 8080
 var port = process.argv[2] || 80;
 if (!serverOptions.key) {
-    console.log("Private/Public key files not found. Reverting to HTTP.");
+    log("Private/Public key files not found. Reverting to HTTP.");
     server = http.Server(app);
 } else {
     //Redirect all incoming HTTP traffic
@@ -130,13 +130,13 @@ if (!serverOptions.key) {
     }).listen(port);
 
     port = 443;
-    console.log("Using HTTPS/TLS with certs.");
+    log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
 }
 server.listen(port, function() {
     tryNum = 1;
     connectSocket();
-    console.log("Fade-server is listening on port "+port);
+    log("Fade-server is listening on port "+port);
 });
 
 function moduleAvailable(name) {
@@ -162,7 +162,7 @@ function socketErr() {
     socketTimeout = null;
     socketReady = false;
 	if (tryNum > maxTries) {
-		console.log(
+		log(
             "Websocket failed to open after "
             + maxTries
             + " attempts. Exiting..."
@@ -176,7 +176,7 @@ function socketErr() {
 		if (Math.round(numSec/60) > 1) {
 			retryTime = Math.round(numSec/60) + " minutes";
 		}
-		console.log("Websocket failed to open. Retrying in "+retryTime+"...");
+		log("Websocket failed to open. Retrying in "+retryTime+"...");
 		socketTimeout = setTimeout(function() {
             socketReady = true;
 			connectSocket();
@@ -190,18 +190,19 @@ function connectSocket() {
     }
 	var addr = 'ws://127.0.0.1:7890';
 	//var addr = 'ws://rpi.student.rit.edu:7890';
-	console.log("Connecting websocket to "+addr)
+	log("Connecting websocket to "+addr)
 	clientSocket = WebSocketClient(addr);
 	clientSocket.on('open', function() {
-		console.log("FC websocket opened successfully!");
+		log("FC websocket opened successfully!");
 	});
 
 	clientSocket.on('error', socketErr);
 
 	serverSocket = WebSocketServer(server);
 	serverSocket.on('connection', function(socket) {
+        var connAddr = socket.handshake.address;
         socketReady = true;
-		log("Socket connected "+socket);
+		log("Socket connected "+connAddr.address+":"+connAddr.port);
 		socket.join('color');
 		if (pattern != null) {
 			socket.emit('color', {
@@ -301,13 +302,13 @@ function getColorFromCommonName(colorName, type) {
             type = "ntc";
         }
         col = name[type][0]
-        console.log("Running "+colorName+"["+type+"][0]", col)
+        log("Running "+colorName+"["+type+"][0]", col)
         var rgb = hexToRgb(col.hex);
         if (rgb) {
             return rgb
         }
     } catch (e) {
-        console.log("Err: Unknown color '"+colorName+"'")
+        log("Err: Unknown color '"+colorName+"'")
     }
     return null;
 }
@@ -357,7 +358,7 @@ function startPattern(id) {
 		endPattern();
 	}
 
-	console.log("Starting: "+id);
+	log("Starting: "+id);
 
 	pattern = patterns[id];
 	pattern.id = id;
@@ -391,7 +392,7 @@ function startPattern(id) {
 			};
 			var justStarted = true;
 			callPattern = function() {
-                console.log("Should break out? "+patternInterval+", "+justStarted);
+                log("Should break out? "+patternInterval+", "+justStarted);
 				if (!patternInterval && !justStarted) {
                     //breaking out is hard to do...
 					return;
@@ -415,7 +416,7 @@ function startPattern(id) {
 
 function _stopPattenTimersOnly() {
     if (patternInterval != null) {
-        console.log("Stopping pattern timer "+patternInterval);
+        log("Stopping pattern timer "+patternInterval);
         clearTimeout(patternInterval);
     }
 
@@ -423,7 +424,7 @@ function _stopPattenTimersOnly() {
 }
 
 function endPattern(dontEmit) {
-    console.log("Stopping pattern");
+    log("Stopping pattern");
 	_stopPattenTimersOnly();
     pattern = null;
 	serverSocket.emit('color', {id: 'stop'});
@@ -450,11 +451,11 @@ function writeColors(colors) {
 //  or array of rgb if onestrip is true
 function writeLEDs(arr, onestrip) {
 	//log("Writing leds to "+ arr.length +" strips");
-	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * arr.length) * 3);
+	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
 
     if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
-        console.log("socket err! attempting to reconnect...");
+        log("socket err! attempting to reconnect...");
         _stopPattenTimersOnly(); //Stop pattern from trying to run
         tryNum = 1;
         connectSocket();
@@ -480,7 +481,7 @@ function writeLEDs(arr, onestrip) {
     	}
     } else {
     	for (var strip = 0; strip < arr.length; strip++) {
-	    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
+	    	log("Strip ("+strip+") has "+arr[strip].length+" leds");
 	    	for (var led = 0; led < arr[strip].length; led++) {
 	    		packet[dest++] = arr[strip][led][0];
 	    		packet[dest++] = arr[strip][led][1];
@@ -499,15 +500,14 @@ function writeLEDs(arr, onestrip) {
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
 function writeOneColorStrip(color) {
-    console.log("Writing to "+numOneColorStrips+" strips");
+    log("Writing to "+numOneColorStrips+" strips");
     var red = color[0]/255.0;
     var green = color[1]/255.0;
     var blue = color[2]/255.0;
     function write(pin, value) {
-        return pin+"="+value;
+        return pin+"="+value+"\n";
     }
     if (piblaster) {
-        console.log("writing...");
         piblaster.write(write(ledPins.red, red));
         piblaster.write(write(ledPins.green, green));
         piblaster.write(write(ledPins.blue, blue));
@@ -528,8 +528,6 @@ function _writeColor(r, g, b, strip) {
         writeOneColorStrip([r,g,b]);
     }
 
-    writeLEDs(stripStatus, false);
-
-    return true;
+    return writeLEDs(stripStatus, false);
 }
 
