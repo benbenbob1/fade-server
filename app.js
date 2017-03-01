@@ -392,7 +392,7 @@ function startPattern(id) {
 			};
 			var justStarted = true;
 			callPattern = function() {
-                log("Should break out? "+patternInterval+", "+justStarted);
+                //log("Should break out? "+patternInterval+", "+justStarted);
 				if (!patternInterval && !justStarted) {
                     //breaking out is hard to do...
 					return;
