@@ -499,7 +499,7 @@ function writeLEDs(arr, onestrip) {
 
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
-function writeOneColorStrip(colors) {
+function writeOneColorStrip(color) {
     log("Writing to "+numOneColorStrips+" strips");
     var red = color[0]/255.0;
     var green = color[1]/255.0;
