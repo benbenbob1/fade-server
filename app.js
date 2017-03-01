@@ -528,6 +528,17 @@ function _writeColor(r, g, b, strip) {
         writeOneColorStrip([r,g,b]);
     }
 
-    return writeLEDs(stripStatus, false);
+    var toWrite = stripStatus.slice(0,numStrips);
+
+    var leds = [];
+    for (var i=0; i<toWrite.length; i++) {
+        var stripLEDs = [];
+        for (var j=0; j<ledsPerStrip; j++) {
+            stripLEDs.push(stripStatus[i]);
+        }
+        leds.push(stripLEDs);
+    }
+
+    return writeLEDs(leds, false);
 }
 
