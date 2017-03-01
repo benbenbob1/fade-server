@@ -16,6 +16,23 @@ var numStrips		= 2;
 var numOneColorStrips = 1;
 var socketReady = true;
 
+var PIBLASTER_DEV = '/dev/pi-blaster';
+var piblaster = null;
+fs.stat(PIBLASTER_DEV, function(err, stats) {
+    if (stats && stats.isFile()) {
+        piblaster = fs.createWriteStream(PIBLASTER_DEV);
+        piblaster.on('error', function(err) {
+            console.log("Error with piblaster stream", err);
+        })
+    }
+});
+
+var ledPins = {
+    red: 23,
+    green: 18,
+    blue: 24
+};
+
 var stripStatus = [[255,255,255], [255,255,255], [255,255,255]];
 
 app.use(bodyParser.json());
@@ -374,6 +391,7 @@ function startPattern(id) {
 			};
 			var justStarted = true;
 			callPattern = function() {
+                console.log("Should break out? "+patternInterval+", "+justStarted);
 				if (!patternInterval && !justStarted) {
                     //breaking out is hard to do...
 					return;
@@ -395,14 +413,19 @@ function startPattern(id) {
 	serverSocket.emit('color', {id: id, config: options});
 }
 
-function endPattern() {
-	console.log("Stopping pattern");
-	if (patternInterval != null) {
-		clearTimeout(patternInterval);
-	}
+function _stopPattenTimersOnly() {
+    if (patternInterval != null) {
+        console.log("Stopping pattern timer "+patternInterval);
+        clearTimeout(patternInterval);
+    }
 
-	patternInterval = null;
-	pattern = null;
+    patternInterval = null;
+}
+
+function endPattern(dontEmit) {
+    console.log("Stopping pattern");
+	_stopPattenTimersOnly();
+    pattern = null;
 	serverSocket.emit('color', {id: 'stop'});
 }
 
@@ -432,6 +455,7 @@ function writeLEDs(arr, onestrip) {
     if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
         console.log("socket err! attempting to reconnect...");
+        _stopPattenTimersOnly(); //Stop pattern from trying to run
         tryNum = 1;
         connectSocket();
         return false;
@@ -475,7 +499,18 @@ function writeLEDs(arr, onestrip) {
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
 function writeOneColorStrip(color) {
-    console.log("Writing to "+numOneColorStrips+" strips");
+    //console.log("Writing to "+numOneColorStrips+" strips");
+    var red = color[0]/255.0;
+    var green = color[1]/255.0;
+    var blue = color[2]/255.0;
+    function write(pin, value) {
+        return pin+"="+value;
+    }
+    if (piblaster) {
+        piblaster.write(write(ledPins.red, red));
+        piblaster.write(write(ledPins.green, green));
+        piblaster.write(write(ledPins.blue, blue));
+    }
 }
 
 //r/g/b out of 255
