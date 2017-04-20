@@ -1,18 +1,18 @@
-var express			= require('express'),
-    tls             = require('tls'),
-    fs              = require('fs'),
-	app 			= express(),
-    http            = require('http'),
-    colorNamer      = require('color-namer'),
-	WebSocketClient	= require('ws'),
-	WebSocketServer	= require('socket.io'),
-	bodyParser		= require('body-parser');
+var express           = require('express'),
+    tls               = require('tls'),
+    fs                = require('fs'),
+    app               = express(),
+    http              = require('http'),
+    colorNamer        = require('color-namer'),
+    WebSocketClient   = require('ws'),
+    WebSocketServer   = require('socket.io'),
+    bodyParser        = require('body-parser');
 
-var patterns 		= require('./js/patterns');
+var patterns          = require('./js/patterns');
 
-var maxLedsPerStrip	= 64;
-var ledsPerStrip 	= 30;
-var numStrips		= 2;
+var maxLedsPerStrip   = 64;
+var ledsPerStrip      = 30;
+var numStrips         = 2;
 var numOneColorStrips = 1;
 var socketReady = true;
 
@@ -154,124 +154,124 @@ var pattern = null;
 var chosenColors = [];
 
 function log(text) {
-	process.stdout.write(text+"\n");
+    process.stdout.write(text+"\n");
 }
 
 function socketErr() {
-	clearTimeout(socketTimeout);
+    clearTimeout(socketTimeout);
     socketTimeout = null;
     socketReady = false;
-	if (tryNum > maxTries) {
-		log(
+    if (tryNum > maxTries) {
+        log(
             "Websocket failed to open after "
             + maxTries
             + " attempts. Exiting..."
         );
-		process.exit();
-	}
-	else {
-		var numSec = (5*Math.pow(2, tryNum));
-		tryNum ++;
-		var retryTime = numSec + " seconds";
-		if (Math.round(numSec/60) > 1) {
-			retryTime = Math.round(numSec/60) + " minutes";
-		}
-		log("Websocket failed to open. Retrying in "+retryTime+"...");
-		socketTimeout = setTimeout(function() {
+        process.exit();
+    }
+    else {
+        var numSec = (5*Math.pow(2, tryNum));
+        tryNum ++;
+        var retryTime = numSec + " seconds";
+        if (Math.round(numSec/60) > 1) {
+            retryTime = Math.round(numSec/60) + " minutes";
+        }
+        log("Websocket failed to open. Retrying in "+retryTime+"...");
+        socketTimeout = setTimeout(function() {
             socketReady = true;
-			connectSocket();
-		}, numSec*1000);
-	}
+            connectSocket();
+        }, numSec*1000);
+    }
 }
 
 function connectSocket() {
     if (!socketReady) {
         return;
     }
-	var addr = 'ws://127.0.0.1:7890';
-	//var addr = 'ws://rpi.student.rit.edu:7890';
-	log("Connecting websocket to "+addr)
-	clientSocket = WebSocketClient(addr);
-	clientSocket.on('open', function() {
-		log("FC websocket opened successfully!");
-	});
+    var addr = 'ws://127.0.0.1:7890';
+    //var addr = 'ws://rpi.student.rit.edu:7890';
+    log("Connecting websocket to "+addr)
+    clientSocket = WebSocketClient(addr);
+    clientSocket.on('open', function() {
+        log("FC websocket opened successfully!");
+    });
 
-	clientSocket.on('error', socketErr);
+    clientSocket.on('error', socketErr);
 
-	serverSocket = WebSocketServer(server);
-	serverSocket.on('connection', function(socket) {
+    serverSocket = WebSocketServer(server);
+    serverSocket.on('connection', function(socket) {
         var connAddr = socket.request.connection.remoteAddress;
         socketReady = true;
-		log("Socket connected "+connAddr);
-		socket.join('color');
-		if (pattern != null) {
-			socket.emit('color', {
-				id: pattern.id,
-				config: pattern.options
-			});
-		} else {
-			broadcastColor(socket);
-		}
+        log("Socket connected "+connAddr);
+        socket.join('color');
+        if (pattern != null) {
+            socket.emit('color', {
+                id: pattern.id,
+                config: pattern.options
+            });
+        } else {
+            broadcastColor(socket);
+        }
 
-		socket.on('newcolor', function(data) {
-			log('Rec: '+JSON.stringify(data));
-			if ('strip' in data) {
-				if (pattern != null) {
-					endPattern();
-				}
-				_writeColor(data.r, data.g, data.b, data.strip);
-				broadcastColor();
-			} else if ('id' in data) {
-				startPattern(data.id);
-			} else if ('config' in data) {
-				if (pattern 
+        socket.on('newcolor', function(data) {
+            log('Rec: '+JSON.stringify(data));
+            if ('strip' in data) {
+                if (pattern != null) {
+                    endPattern();
+                }
+                _writeColor(data.r, data.g, data.b, data.strip);
+                broadcastColor();
+            } else if ('id' in data) {
+                startPattern(data.id);
+            } else if ('config' in data) {
+                if (pattern 
                     && pattern.options
                     && pattern.options[data.config]) {
-					var input = pattern.options[data.config].config.input;
-					if (input && typeof input.update !== undefined) {
-						pattern.options[data.config].displayValue = data.value;
-						input.update.call(pattern, data.value);
-					}
-				}
-			}
-		});
-	});
+                    var input = pattern.options[data.config].config.input;
+                    if (input && typeof input.update !== undefined) {
+                        pattern.options[data.config].displayValue = data.value;
+                        input.update.call(pattern, data.value);
+                    }
+                }
+            }
+        });
+    });
 
 }
 
 function broadcastColor(socket) {
-	if (socket) {
-		for (var s=0; s<stripStatus.length; s++) {
-			socket.emit('color', {
-				r: stripStatus[s][0],
-				g: stripStatus[s][1],
-				b: stripStatus[s][2],
-				strip: s
-			});
-		}
-	} else {
-		for (var s=0; s<stripStatus.length; s++) {
-			serverSocket.emit('color', {
-				r: stripStatus[s][0],
-				g: stripStatus[s][1],
-				b: stripStatus[s][2],
-				strip: s
-			});
-		}
-	}
-	
+    if (socket) {
+        for (var s=0; s<stripStatus.length; s++) {
+            socket.emit('color', {
+                r: stripStatus[s][0],
+                g: stripStatus[s][1],
+                b: stripStatus[s][2],
+                strip: s
+            });
+        }
+    } else {
+        for (var s=0; s<stripStatus.length; s++) {
+            serverSocket.emit('color', {
+                r: stripStatus[s][0],
+                g: stripStatus[s][1],
+                b: stripStatus[s][2],
+                strip: s
+            });
+        }
+    }
+    
 }
 
 function getColors() {
-	var colorArr = [];
-	for (var s=0; s<stripStatus.length; s++) {
-		colorArr.push([
-			stripStatus[s][0],
-			stripStatus[s][1],
-			stripStatus[s][2],
-		]);
-	}
-	return colorArr;
+    var colorArr = [];
+    for (var s=0; s<stripStatus.length; s++) {
+        colorArr.push([
+            stripStatus[s][0],
+            stripStatus[s][1],
+            stripStatus[s][2],
+        ]);
+    }
+    return colorArr;
 }
 
 //{r: 0-255, g: 0-255, b: 0-255} or null
@@ -351,67 +351,67 @@ function hslToRgb(h, s, l){
 
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id) {
-	if (id == 'stop') {
-		endPattern();
-		return;
-	} else if (pattern !== null || patternInterval !== null) {
-		endPattern();
-	}
+    if (id == 'stop') {
+        endPattern();
+        return;
+    } else if (pattern !== null || patternInterval !== null) {
+        endPattern();
+    }
 
-	log("Starting: "+id);
+    log("Starting: "+id);
 
-	pattern = patterns[id];
-	pattern.id = id;
-	var options = pattern.options || {};
-	if (pattern != null && options.interval) {
-		if (options.interval.defaultValue > 0) {
-			var me = {};
-			patternStart = function() { //Start pattern
-				if (pattern.start) {
-					pattern.start.call(me);
-				}
-				if (options) {
-					var item;
-					for (var option in options) {
-						item = options[option];
-						if (item.defaultValue 
+    pattern = patterns[id];
+    pattern.id = id;
+    var options = pattern.options || {};
+    if (pattern != null && options.interval) {
+        if (options.interval.defaultValue > 0) {
+            var me = {};
+            patternStart = function() { //Start pattern
+                if (pattern.start) {
+                    pattern.start.call(me);
+                }
+                if (options) {
+                    var item;
+                    for (var option in options) {
+                        item = options[option];
+                        if (item.defaultValue 
                             && typeof item.value === "undefined") {
-							item.value = item.defaultValue;
-						}
-					}
-				}
-			}
-			me = {
-				getColors: getColors,
-				patternHue: patternHue,
-				writeColor: writeColors,
-				writeLEDs: writeLEDs,
-				hslToRgb: hslToRgb,
-				options: options,
-				variables: {}
-			};
-			var justStarted = true;
-			callPattern = function() {
+                            item.value = item.defaultValue;
+                        }
+                    }
+                }
+            }
+            me = {
+                getColors: getColors,
+                patternHue: patternHue,
+                writeColor: writeColors,
+                writeLEDs: writeLEDs,
+                hslToRgb: hslToRgb,
+                options: options,
+                variables: {}
+            };
+            var justStarted = true;
+            callPattern = function() {
                 //log("Should break out? "+patternInterval+", "+justStarted);
-				if (!patternInterval && !justStarted) {
+                if (!patternInterval && !justStarted) {
                     //breaking out is hard to do...
-					return;
-				}
-				justStarted = false;
-				pattern.function.call(me);
-				patternInterval = setTimeout(callPattern, 
+                    return;
+                }
+                justStarted = false;
+                pattern.function.call(me);
+                patternInterval = setTimeout(callPattern, 
                     options.interval.value);
-			}
-			patternStart();
-			callPattern();
-		} else if (pattern.options.interval.defaultValue < 0) {
-			patternInterval = setTimeout(pattern.function, 
+            }
+            patternStart();
+            callPattern();
+        } else if (pattern.options.interval.defaultValue < 0) {
+            patternInterval = setTimeout(pattern.function, 
                 -options.interval.value);
-		} else if (pattern.options.interval.defaultValue === 0) {
-			patternInterval = pattern.function();
-		}
-	}
-	serverSocket.emit('color', {id: id, config: options});
+        } else if (pattern.options.interval.defaultValue === 0) {
+            patternInterval = pattern.function();
+        }
+    }
+    serverSocket.emit('color', {id: id, config: options});
 }
 
 function _stopPattenTimersOnly() {
@@ -425,33 +425,33 @@ function _stopPattenTimersOnly() {
 
 function endPattern(dontEmit) {
     log("Stopping pattern");
-	_stopPattenTimersOnly();
+    _stopPattenTimersOnly();
     pattern = null;
-	serverSocket.emit('color', {id: 'stop'});
+    serverSocket.emit('color', {id: 'stop'});
 }
 
 // [[r,g,b], [r,g,b]]
 function writeColors(colors) {
-	var leds = [];
-	for (var strip = 0; strip < colors.length; strip++) {
-		var aStrip = [];
-		for (var led = 0; led < ledsPerStrip; led++) {
-			aStrip.push([
-				colors[strip][0],
-				colors[strip][1],
-				colors[strip][2],
-			]);
-		}
-		leds.push(aStrip);
-	}
-	writeLEDs(leds, false);
+    var leds = [];
+    for (var strip = 0; strip < colors.length; strip++) {
+        var aStrip = [];
+        for (var led = 0; led < ledsPerStrip; led++) {
+            aStrip.push([
+                colors[strip][0],
+                colors[strip][1],
+                colors[strip][2],
+            ]);
+        }
+        leds.push(aStrip);
+    }
+    writeLEDs(leds, false);
 }
 
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
 //  or array of rgb if onestrip is true
 function writeLEDs(arr, onestrip) {
-	//log("Writing leds to "+ arr.length +" strips");
-	var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
+    //log("Writing leds to "+ arr.length +" strips");
+    var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
 
     if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
@@ -474,22 +474,22 @@ function writeLEDs(arr, onestrip) {
     var dest = 4;
 
     if (onestrip) {
-    	for (var led = 0; led < maxLedsPerStrip*numStrips; led++) {
-    		packet[dest++] = arr[led][0];
-    		packet[dest++] = arr[led][1];
-    		packet[dest++] = arr[led][2];
-    	}
+        for (var led = 0; led < maxLedsPerStrip*numStrips; led++) {
+            packet[dest++] = arr[led][0];
+            packet[dest++] = arr[led][1];
+            packet[dest++] = arr[led][2];
+        }
     } else {
-    	for (var strip = 0; strip < arr.length; strip++) {
-	    	//log("Strip ("+strip+") has "+arr[strip].length+" leds");
-	    	for (var led = 0; led < arr[strip].length; led++) {
-	    		packet[dest++] = arr[strip][led][0];
-	    		packet[dest++] = arr[strip][led][1];
-	    		packet[dest++] = arr[strip][led][2];
-	    	}
-	    	var toGo = maxLedsPerStrip - led;
-	    	dest += (toGo*3);
-	    }
+        for (var strip = 0; strip < arr.length; strip++) {
+            //log("Strip ("+strip+") has "+arr[strip].length+" leds");
+            for (var led = 0; led < arr[strip].length; led++) {
+                packet[dest++] = arr[strip][led][0];
+                packet[dest++] = arr[strip][led][1];
+                packet[dest++] = arr[strip][led][2];
+            }
+            var toGo = maxLedsPerStrip - led;
+            dest += (toGo*3);
+        }
     }
     
     clientSocket.send(packet.buffer);
@@ -516,13 +516,13 @@ function writeOneColorStrip(color) {
 
 //r/g/b out of 255
 function _writeColor(r, g, b, strip) {
-	if (Array.isArray(strip)) {
-		for (var i=0; i<strip.length; i++) {
-			stripStatus[strip[i]] = [r,g,b];
-		}
-	} else {
-		stripStatus[strip] = [r,g,b];
-	}
+    if (Array.isArray(strip)) {
+        for (var i=0; i<strip.length; i++) {
+            stripStatus[strip[i]] = [r,g,b];
+        }
+    } else {
+        stripStatus[strip] = [r,g,b];
+    }
 
     if (stripStatus.length >= numStrips) {
         writeOneColorStrip(stripStatus.slice(numStrips)[0]);
