@@ -541,4 +541,3 @@ function _writeColor(r, g, b, strip) {
 
     return writeLEDs(leds, false);
 }
-

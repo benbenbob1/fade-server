@@ -231,8 +231,9 @@ var patterns = {
 			var curColors = this.getColors();
 			if (typeof curColors === "undefined") {
 				curColors = [
-					[255, 255, 255],
-					[0, 0, 0]
+					[255, 0, 0],
+					[0, 255, 0],
+					[0, 0, 255]
 				];
 			}
 			var count = curColors.length;
