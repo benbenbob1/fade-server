@@ -10,10 +10,21 @@ var express           = require('express'),
 
 var patterns          = require('./js/patterns');
 
-var maxLedsPerStrip   = 64;
-var ledsPerStrip      = 30;
-var numStrips         = 2;
-var numOneColorStrips = 1;
+var configFile = "js/config.json";
+
+var config = {
+    maxLedsPerStrip   : 64,
+    ledsPerStrip      : 30,
+    numStrips         : 2,
+    numOneColorStrips : 1,
+    https             : true,
+    port              : 80
+}
+
+config = JSON.parse(fs.readFileSync(configFile));
+log("Starting with config: \n"+JSON.stringify(config));
+
+var totalStrips = config.numStrips + config.numOneColorStrips;
 var socketReady = true;
 
 var PIBLASTER_DEV = '/dev/pi-blaster';
@@ -33,7 +44,7 @@ var ledPins = {
     blue: 24
 };
 
-var stripStatus = [[255,255,255], [255,255,255], [255,255,255]];
+var stripStatus = Array(totalStrips).fill([255, 255, 255]);
 
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
@@ -57,7 +68,8 @@ app.post('/api/color', function(req, res) {
     var g = req.body['green'] || 0;
     var b = req.body['blue']  || 0;
     endPattern();
-    _writeColor(r, g, b, [0,1,2]);
+
+    _writeColor(r, g, b, arrayOfNumbersUpTo(totalStrips));
     broadcastColor();
     res.send([r, g, b].join(", "));
 });
@@ -92,8 +104,9 @@ app.post('/api/endpoint/echo', function(req, res) {
     };
     if (color) {
         endPattern();
-        _writeColor(color.r, color.g, color.b, [0,1,2]);
-        _writeColor(color.r, color.g, color.b, [0,1,2]);
+        var arr = arrayOfNumbersUpTo(totalStrips);
+        _writeColor(color.r, color.g, color.b, arr);
+        _writeColor(color.r, color.g, color.b, arr);
         broadcastColor();
         output.response.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
@@ -118,14 +131,17 @@ var serverOptions = (function(){
 })();
 
 //node app.js 8080
-var port = process.argv[2] || 80;
-if (!serverOptions.key) {
-    log("Private/Public key files not found. Reverting to HTTP.");
+var port = process.argv[2] || config.port;
+if (!serverOptions.key || !config.https) {
+    log("Private/Public key files not found or HTTPS set to false." +
+        " Reverting to HTTP.");
     server = http.Server(app);
 } else {
     //Redirect all incoming HTTP traffic
     http.createServer(function (req, res) {
-        res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+        res.writeHead(301, { 
+            "Location": "https://" + req.headers['host'] + req.url 
+        });
         res.end();
     }).listen(port);
 
@@ -155,6 +171,14 @@ var chosenColors = [];
 
 function log(text) {
     process.stdout.write(text+"\n");
+}
+
+function arrayOfNumbersUpTo(max) {
+    var output = [];
+    for (var i=0; i<max; i++) {
+        output.push(i);
+    }
+    return output;
 }
 
 function socketErr() {
@@ -435,7 +459,7 @@ function writeColors(colors) {
     var leds = [];
     for (var strip = 0; strip < colors.length; strip++) {
         var aStrip = [];
-        for (var led = 0; led < ledsPerStrip; led++) {
+        for (var led = 0; led < config.ledsPerStrip; led++) {
             aStrip.push([
                 colors[strip][0],
                 colors[strip][1],
@@ -451,7 +475,9 @@ function writeColors(colors) {
 //  or array of rgb if onestrip is true
 function writeLEDs(arr, onestrip) {
     //log("Writing leds to "+ arr.length +" strips");
-    var packet = new Uint8ClampedArray(4 + (maxLedsPerStrip * numStrips) * 3);
+    var packet = new Uint8ClampedArray(
+        4 + (config.maxLedsPerStrip * config.numStrips) * 3
+    );
 
     if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
@@ -474,7 +500,8 @@ function writeLEDs(arr, onestrip) {
     var dest = 4;
 
     if (onestrip) {
-        for (var led = 0; led < maxLedsPerStrip*numStrips; led++) {
+        for (var led = 0; led < config.maxLedsPerStrip*config.numStrips; led++)
+        {
             packet[dest++] = arr[led][0];
             packet[dest++] = arr[led][1];
             packet[dest++] = arr[led][2];
@@ -487,7 +514,7 @@ function writeLEDs(arr, onestrip) {
                 packet[dest++] = arr[strip][led][1];
                 packet[dest++] = arr[strip][led][2];
             }
-            var toGo = maxLedsPerStrip - led;
+            var toGo = config.maxLedsPerStrip - led;
             dest += (toGo*3);
         }
     }
@@ -500,7 +527,7 @@ function writeLEDs(arr, onestrip) {
 //For writing to a non-fadecandy strip
 //color = [r,g,b]
 function writeOneColorStrip(color) {
-    log("Writing to "+numOneColorStrips+" strips");
+    log("Writing to "+config.numOneColorStrips+" strips");
     var red = color[0]/255.0;
     var green = color[1]/255.0;
     var blue = color[2]/255.0;
@@ -524,16 +551,16 @@ function _writeColor(r, g, b, strip) {
         stripStatus[strip] = [r,g,b];
     }
 
-    if (stripStatus.length >= numStrips) {
-        writeOneColorStrip(stripStatus.slice(numStrips)[0]);
+    if (stripStatus.length > config.numStrips) {
+        writeOneColorStrip(stripStatus.slice(config.numStrips)[0]);
     }
 
-    var toWrite = stripStatus.slice(0,numStrips);
+    var toWrite = stripStatus.slice(0,config.numStrips);
 
     var leds = [];
     for (var i=0; i<toWrite.length; i++) {
         var stripLEDs = [];
-        for (var j=0; j<ledsPerStrip; j++) {
+        for (var j=0; j<config.ledsPerStrip; j++) {
             stripLEDs.push(stripStatus[i]);
         }
         leds.push(stripLEDs);

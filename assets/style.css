@@ -35,26 +35,26 @@ button {
     box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
 }
 
-button.jscolor.button-locked {
+button.colorbtn.button-locked {
     margin-bottom: -30px;
 }
-button.jscolor.button-locked:not(:first-child) {
+button.colorbtn.button-locked:not(:first-child) {
     margin-top: -30px;
 }
 
-button.jscolor.button-locked:hover {
+button.colorbtn.button-locked:hover {
     margin-bottom: -30px;
     box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
 }
 
-button.jscolor:hover {
+button.colorbtn:hover {
     cursor: pointer;
 	box-shadow: 0px 3px 0px 0px rgba(61,199,34,0.75);
 	margin-top: 3px;
     margin-bottom: 27px;
 }
 
-button.jscolor {
+button.colorbtn {
     margin-bottom: 30px;
 }
 
@@ -62,7 +62,7 @@ button:focus {
     outline: none;
 }
 
-button.jscolor:focus {
+button.colorbtn:focus {
     margin-top: 6px;
     margin-bottom: 24px;
 	box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
@@ -74,14 +74,14 @@ button:disabled {
     background-color: darkgrey !important;
 }
 
-button.jscolor {
+button.colorbtn {
 	transition: 0.06s ease-in all;
     border-radius: 5px;
     border: none;
     box-shadow: 0px 6px 0px 0px rgba(61,199,34,0.75);
 }
 
-button.jscolor.offline {
+button.colorbtn.offline {
     box-shadow: 0px 6px 0px 0px rgba(199, 46, 42, 0.75);
 }
 
@@ -113,16 +113,15 @@ button.jscolor.offline {
     margin-bottom: 30px;
 }
 
-.jscolor:first-child {
+.colorbtn:first-child {
 	z-index: 10;
 }
 
-.jscolor:nth-child(n+2) {
+.colorbtn:nth-child(n+2) {
 	z-index: 9;
-    width: 2
 }
 
-.jscolor {
+.colorbtn {
     position: relative;
     max-width: 80%;
     height: 60px;
@@ -133,7 +132,7 @@ button.jscolor.offline {
     transition: 0.4s ease-in-out top;
 }
 
-.jscolor-error {
+.colorbtn-error {
     box-shadow: 0px 10px 0px 0px rgba(204,50,50,0.75);
 }
 

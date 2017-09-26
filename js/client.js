@@ -2,11 +2,11 @@ var colorsLocked, lastButtonPressedId;
 var buttons = null;
 var loc = document.location.origin;
 var socket = io.connect(loc);
-console.log("Socket connected to",loc)
-//var socket = io.connect('http://rpi.student.rit.edu:8080');
-//var socket = io.connect('http://127.0.0.1:8080');
+console.log("Socket connected to",loc);
 var curFade = '';
 var reachable = false;
+
+var config = {};
 
 $(document).ready(function() {
     colorsLocked = localStorage.getItem('locked');
@@ -18,11 +18,12 @@ $(document).ready(function() {
         colorsLocked = false;
     }
 
-    buttons = $(".strip-button");
+    //disableButtons(true);
 
-    disableButtons(true);
-
-    lockIconClicked();
+    $.getJSON('js/config.json', function(data) {
+        config = data;
+        setupStripButtons(config.numStrips + config.numOneColorStrips);
+    });
 });
 
 
@@ -59,7 +60,34 @@ socket.on('error', function(err) {
     console.log(err);
 });
 
+function setupStripButtons(numButtons) {
+    var container = document.getElementById('strip-buttons');
+    for (var i=0; i<numButtons; i++) {
+        var button = document.createElement('button');
+        button.className = 'strip-button colorbtn'/* jscolor ' + 
+            '{width: 225, position:"center", valueElement:null,' +
+            ' styleElement:null, onFineChange:"colorUpdated(this)"}'*/;
+        button.id = 'cc'+(i+1);
+        button.onclick = 'lastButtonPressed('+button.id+')';
+        button.innerText = 'Strip '+(i+1);
+        container.appendChild(button);
+
+        var colorPicker = new jscolor(button, {
+            width: ($(button).innerWidth()*0.8),
+            position: "center",
+            valueElement: null,
+            styleElement: null,
+            onFineChange: "colorUpdated(this)"
+        });
+    }
+    buttons = $(".strip-button");
+    lockIconClicked();
+}
+
 function disableButtons(enabled) {
+    if (!buttons) {
+        return;
+    }
     if (enabled) {
         buttons.each(function(idx) {
             $(this).addClass("offline");
@@ -80,9 +108,12 @@ function setLocalColor(strip, color) {
 
     //console.log('Setting '+elem+' to '+JSON.stringify(color));
 
-    document.getElementById(elem).style.background = rgbToHex(color[0], color[1], color[2]);
+    document.getElementById(elem).style.background = 
+        rgbToHex(color[0], color[1], color[2]);
     //$('#'+elem).prop('value', rgbToHex(color[0], color[1], color[2]));
-    $('#'+elem).css('color', getTextColorForBackground(color[0], color[1], color[2]));
+    $('#'+elem).css('color', 
+        getTextColorForBackground(color[0], color[1], color[2])
+    );
 }
 
 var bufferOpen = true;
@@ -98,6 +129,9 @@ function post(data) {
 }
 
 function lockIconClicked() {
+    if (!buttons) {
+        return;
+    }
     var locked = 'locked.png',
         unlocked = 'unlocked.png';
 
@@ -174,7 +208,8 @@ function colorUpdated(picker) {
     color.strip = [];
 
     if (colorsLocked) {
-        color.strip = [0, 1, 2];
+        color.strip = arrayOfNumbersUpTo(
+            config.numStrips + config.numOneColorStrips);
         post(color);
     } else {
         switch (lastButtonPressedId) {
@@ -192,6 +227,14 @@ function colorUpdated(picker) {
         }
         post(color);
     }
+}
+
+function arrayOfNumbersUpTo(max) {
+    var output = [];
+    for (var i=0; i<max; i++) {
+        output.push(i);
+    }
+    return output;
 }
 
 function lastButtonPressed(button) {
@@ -260,7 +303,9 @@ function setupConfig(options) {
         }
         if (config.label.right) {
             rLabel.id = config.label.right.id;
-            if (config.input.valueType && config.input.valueType === "percent" && option.displayValue != null) {
+            if (config.input.valueType && 
+                config.input.valueType === "percent" && 
+                option.displayValue != null) {
                 rLabel.innerText = option.displayValue + "%";
             } else {
                 rLabel.innerText = config.label.right.text;
