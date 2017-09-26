@@ -77,7 +77,7 @@ function setupStripButtons(numButtons) {
             position: "center",
             valueElement: null,
             styleElement: null,
-            onFineChange: "colorUpdated(this)"
+            onFineChange: "colorUpdated"
         });
     }
     buttons = $(".strip-button");
