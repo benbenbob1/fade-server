@@ -1,4 +1,4 @@
-var colorsLocked, lastButtonPressedId;
+var colorsLocked;
 var buttons = null;
 var loc = document.location.origin;
 var socket = io.connect(loc);
@@ -64,11 +64,8 @@ function setupStripButtons(numButtons) {
     var container = document.getElementById('strip-buttons');
     for (var i=0; i<numButtons; i++) {
         var button = document.createElement('button');
-        button.className = 'strip-button colorbtn'/* jscolor ' + 
-            '{width: 225, position:"center", valueElement:null,' +
-            ' styleElement:null, onFineChange:"colorUpdated(this)"}'*/;
+        button.className = 'colorbtn';
         button.id = 'cc'+(i+1);
-        button.onclick = 'lastButtonPressed('+button.id+')';
         button.innerText = 'Strip '+(i+1);
         container.appendChild(button);
 
@@ -76,11 +73,11 @@ function setupStripButtons(numButtons) {
             width: ($(button).innerWidth()*0.8),
             position: "center",
             valueElement: null,
-            styleElement: null,
-            onFineChange: "colorUpdated"
+            styleElement: null
         });
+        colorPicker.onFineChange = colorUpdated.bind(null, colorPicker, i);
     }
-    buttons = $(".strip-button");
+    buttons = $(".colorbtn");
     lockIconClicked();
 }
 
@@ -108,12 +105,14 @@ function setLocalColor(strip, color) {
 
     //console.log('Setting '+elem+' to '+JSON.stringify(color));
 
-    document.getElementById(elem).style.background = 
-        rgbToHex(color[0], color[1], color[2]);
-    //$('#'+elem).prop('value', rgbToHex(color[0], color[1], color[2]));
-    $('#'+elem).css('color', 
-        getTextColorForBackground(color[0], color[1], color[2])
-    );
+    if (document.getElementById(elem)) {
+        document.getElementById(elem).style.background = 
+            rgbToHex(color[0], color[1], color[2]);
+        //$('#'+elem).prop('value', rgbToHex(color[0], color[1], color[2]));
+        $('#'+elem).css('color', 
+            getTextColorForBackground(color[0], color[1], color[2])
+        );
+    }
 }
 
 var bufferOpen = true;
@@ -200,7 +199,10 @@ function getTextColorForBackground(r, g, b) {
     return bOrW ? '#FFF' : '#000';
 }
 
-function colorUpdated(picker) {
+function colorUpdated(picker, buttonNum) {
+    console.log("Picker", picker);
+    console.log("BN", buttonNum);
+
     var color = {};
     color.r = Math.round(picker.rgb[0]);
     color.g = Math.round(picker.rgb[1]);
@@ -212,19 +214,7 @@ function colorUpdated(picker) {
             config.numStrips + config.numOneColorStrips);
         post(color);
     } else {
-        switch (lastButtonPressedId) {
-            case 'cc1':
-                color.strip = 0;
-                break;
-            case 'cc2':
-                color.strip = 1;
-                break;
-            case 'cc3':
-                color.strip = 2;
-                break;
-            default:
-                color.strip = 0;
-        }
+        color.strip = buttonNum
         post(color);
     }
 }
@@ -235,10 +225,6 @@ function arrayOfNumbersUpTo(max) {
         output.push(i);
     }
     return output;
-}
-
-function lastButtonPressed(button) {
-    lastButtonPressedId = button;
 }
 
 /*
