@@ -447,7 +447,7 @@ var patterns = {
 			}
 		}
 	},
-	'moving-fade-diagonal': {
+	'moving-fade-2': {
 		options: {
 			fade: {
 				displayValue: true,
