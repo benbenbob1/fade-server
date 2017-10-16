@@ -410,7 +410,7 @@ var patterns = {
 			var ledsPerStrip = [
 				[52],
 				[-52],
-				[28,-28]
+				[-28,-28]
 			];
 			var strips = [];
 			
