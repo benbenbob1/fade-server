@@ -1,132 +1,132 @@
 var __configs = {
 	interval_10_500: {
 		label: {
-	        left: {
-	            id: "",
-	            text: "Speed"
-	        },
-	        right: {
-	            id: "config-speed-input-percent",
-	            text: "100%"
-	        }
-	    },
-	    input: {
-	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
-	        range: {
-	            min: 10,
-	            max: 500
-	        }
-	    }
+			left: {
+				id: "",
+				text: "Speed"
+			},
+			right: {
+				id: "config-speed-input-percent",
+				text: "100%"
+			}
+		},
+		input: {
+			type: "range",
+			update: function(value) {
+				this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
+			},
+			valueType: "percent",
+			range: {
+				min: 10,
+				max: 500
+			}
+		}
 	},
 	interval_10_1000: {
 		label: {
-	        left: {
-	            id: "",
-	            text: "Speed"
-	        },
-	        right: {
-	            id: "config-speed-input-percent",
-	            text: "100%"
-	        }
-	    },
-	    input: {
-	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
-	        range: {
-	            min: 10,
-	            max: 1000
-	        }
-	    }
+			left: {
+				id: "",
+				text: "Speed"
+			},
+			right: {
+				id: "config-speed-input-percent",
+				text: "100%"
+			}
+		},
+		input: {
+			type: "range",
+			update: function(value) {
+				this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
+			},
+			valueType: "percent",
+			range: {
+				min: 10,
+				max: 1000
+			}
+		}
 	},
 	fade: {
 		label: {
-            left: {
-                id: "",
-                text: "Fade"
-            }
-        },
-        input: {
-            type: "checkbox",
-            update: function(value) {
-	        	this.options.fade.value = value;
-	        }
-        }
+			left: {
+				id: "",
+				text: "Fade"
+			}
+		},
+		input: {
+			type: "checkbox",
+			update: function(value) {
+				this.options.fade.value = value;
+			}
+		}
 	},
 	brightness: {
 		label: {
-            left: {
-                id: "",
-                text: "Brightness"
-            },
-            right: {
-                id: "config-brightness-input-percent",
-                text: "100%"
-            }
-        },
-        input: {
-            type: "range",
-            update: function(value) {
-	        	this.options.brightness.value = (value/100);
-	        },
-	        valueType: "percent",
-            range: {
-                min: 0,
-                max: 100
-            }
-        }
+			left: {
+				id: "",
+				text: "Brightness"
+			},
+			right: {
+				id: "config-brightness-input-percent",
+				text: "100%"
+			}
+		},
+		input: {
+			type: "range",
+			update: function(value) {
+				this.options.brightness.value = (value/100);
+			},
+			valueType: "percent",
+			range: {
+				min: 0,
+				max: 100
+			}
+		}
 	},
 	lightness: {
 		label: {
-            left: {
-                id: "",
-                text: "Lightness"
-            },
-            right: {
-                id: "config-lightness-input-percent",
-                text: "50%"
-            }
-        },
-        input: {
-            type: "range",
-            update: function(value) {
-	        	this.options.brightness.value = (value/100);
-	        },
-	        valueType: "percent",
-            range: {
-                min: 0,
-                max: 100
-            }
-        }
+			left: {
+				id: "",
+				text: "Lightness"
+			},
+			right: {
+				id: "config-lightness-input-percent",
+				text: "50%"
+			}
+		},
+		input: {
+			type: "range",
+			update: function(value) {
+				this.options.brightness.value = (value/100);
+			},
+			valueType: "percent",
+			range: {
+				min: 0,
+				max: 100
+			}
+		}
 	},
 	saturation: {
 		label: {
-            left: {
-                id: "",
-                text: "Saturation"
-            },
-            right: {
-                id: "config-saturation-input-percent",
-                text: "100%"
-            }
-        },
-        input: {
-            type: "range",
-            valueType: "percent",
-            update: function(value) {
-	        	this.options.saturation.value = (value/100);
-	        },
-            range: {
-                min: 0,
-                max: 100
-            }
-        }
+			left: {
+				id: "",
+				text: "Saturation"
+			},
+			right: {
+				id: "config-saturation-input-percent",
+				text: "100%"
+			}
+		},
+		input: {
+			type: "range",
+			valueType: "percent",
+			update: function(value) {
+				this.options.saturation.value = (value/100);
+			},
+			range: {
+				min: 0,
+				max: 100
+			}
+		}
 	}
 };
 
@@ -414,13 +414,14 @@ var patterns = {
 			];
 			var strips = [];
 			
-			for (var out=0; out<ledsPerStrip; out++) {
+			for (var out=0; out<ledsPerStrip.length; out++) {
 				var strip = [];
+				var led = 0;
 				for (var s=0; s<ledsPerStrip[out].length; s++) {
 					var inverted = ledsPerStrip[out][s] < 0;
 					var numLeds = Math.abs(ledsPerStrip[out][s]);
-					for (var led=numLeds; led<numLeds; led++) {
-						var hue = this.patternHue+((led/numLeds));
+					for (var ledOffset=0; ledOffset<numLeds; ledOffset++) {
+						var hue = this.patternHue+((ledOffset/numLeds));
 						if (hue > 1.0) {
 							hue -= 1.0;
 						}
@@ -430,11 +431,12 @@ var patterns = {
 							this.options.brightness.value
 						);
 						if (inverted) {
-							strip[numLeds-led] = col;
+							strip[led+(numLeds-ledOffset-1)] = col;
 						} else {
-							strip[led] = col;
+							strip[led+ledOffset] = col;
 						}
 					}
+					led = numLeds;
 				}
 				strips.push(strip);
 			}
