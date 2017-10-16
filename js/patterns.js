@@ -323,7 +323,7 @@ var patterns = {
 		},
 		function: function() {
 			var strip = []; //one strip of 60 leds
-			var leds = 160;
+			var leds = 192;
 			for (var i=0; i<leds; i++) {
 				strip[i] = [0,0,0];
 			}
