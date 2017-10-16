@@ -55,8 +55,6 @@ app.use(function(req, res, next) {
 });
 app.use('/js',
     express.static(__dirname + '/js'));
-app.use('/js/socketio', 
-    express.static(__dirname + "/node_modules/socket.io-client/"));
 app.use('/assets',
     express.static(__dirname + '/assets'));
 
