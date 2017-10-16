@@ -262,9 +262,9 @@ button.colorbtn.offline {
     animation: hue-rotate 3s linear infinite;
 }
 
-#pattern-moving-fade {
+#pattern-moving-fade-2 {
     background-image: repeating-linear-gradient( -45deg, red, orange 20%, yellow 40%, green 60%, blue 80%, red 100% );
-    animation: hue-rotate 3s linear infinite;
+    animation: hue-rotate-2 3s linear infinite;
 }
 
 @keyframes hue-rotate {
@@ -275,6 +275,16 @@ button.colorbtn.offline {
     to {
         /*-webkit-filter: hue-rotate(359deg);*/
         background-position-x: 24px;
+    }
+}
+
+@keyframes hue-rotate-2 {
+    from {
+        background-position-x: 0px;
+    }
+    to {
+        background-position-x: 24px;
+        background-position-y: 24px;
     }
 }
 
