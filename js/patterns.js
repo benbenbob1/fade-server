@@ -162,11 +162,13 @@ var patterns = {
 			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
 			this.writeColor([
 				[col[0], col[1], col[2]],
+				[col[0], col[1], col[2]],
 				[col[0], col[1], col[2]]
 			]);
 			//console.log(this.options.saturation.value);
 			if (!this.options.fade.value) {
 				this.writeColor([
+					[col[0], col[1], col[2]],
 					[col[0], col[1], col[2]],
 					[col[0], col[1], col[2]]
 				]);
@@ -204,12 +206,14 @@ var patterns = {
 			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
 			this.writeColor([
 				[col[0], col[1], col[2]],
-				[255-col[0], 255-col[1], 255-col[2]]
+				[255-col[0], 255-col[1], 255-col[2]],
+				[col[0], col[1], col[2]]
 			]);
 			if (!this.options.fade.value) {
 				this.writeColor([
 					[col[0], col[1], col[2]],
-					[255-col[0], 255-col[1], 255-col[2]]
+					[255-col[0], 255-col[1], 255-col[2]],
+					[col[0], col[1], col[2]]
 				]);
 			}
 		},
@@ -275,7 +279,7 @@ var patterns = {
 		},
 		function: function() {
 			var strips = [];
-			var stripCount = 2;
+			var stripCount = 3;
 			function randColor(brightness) {
 				function color() {
 					return Math.floor(Math.random() * 255 * brightness);
@@ -288,7 +292,7 @@ var patterns = {
 			}
 			for (var s=0; s<stripCount; s++) {
 				var strip = [];
-				for (var x=0; x<30; x++) {
+				for (var x=0; x<60; x++) {
 					strip.push(randColor(this.options.brightness.value));
 				}
 				strips.push(strip);
@@ -319,7 +323,7 @@ var patterns = {
 		},
 		function: function() {
 			var strip = []; //one strip of 60 leds
-			var leds = 128;
+			var leds = 160;
 			for (var i=0; i<leds; i++) {
 				strip[i] = [0,0,0];
 			}
@@ -403,18 +407,41 @@ var patterns = {
 				this.patternHue -= 1.0;
 			}
 
-			var strip = [];
-			for (var led=0; led<30; led++) {
-				var hue = this.patternHue+((led/30));
-				if (hue > 1.0) {
-					hue -= 1.0;
+			var ledsPerStrip = [
+				[52],
+				[28,-28],
+				[-52]
+			];
+			var strips = [];
+			
+			for (var out=0; out<ledsPerStrip; out++) {
+				var strip = [];
+				for (var s=0; s<ledsPerStrip[out].length; s++) {
+					var inverted = ledsPerStrip[out][s] < 0;
+					var numLeds = Math.abs(ledsPerStrip[out][s]);
+					for (var led=numLeds; led<numLeds; led++) {
+						var hue = this.patternHue+((led/numLeds));
+						if (hue > 1.0) {
+							hue -= 1.0;
+						}
+						var col = this.hslToRgb(
+							hue, 
+							this.options.saturation.value, 
+							this.options.brightness.value
+						);
+						if (inverted) {
+							strip[numLeds-led] = col;
+						} else {
+							strip[led] = col;
+						}
+					}
 				}
-				var col = this.hslToRgb(hue, this.options.saturation.value, this.options.brightness.value);
-				strip.push(col);
+				strips.push(strip);
 			}
-			this.writeLEDs([strip, strip]);
+			
+			this.writeLEDs(strips);
 			if (!this.options.fade.value) {
-				this.writeLEDs([strip, strip]);
+				this.writeLEDs(strips);
 			}
 		}
 	},
