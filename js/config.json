@@ -2,7 +2,8 @@
     "maxLedsPerStrip"   : 64,
     "ledsPerStrip"      : 30,
     "numStrips"         : 2,
-    "numOneColorStrips" : 0,
+    "numOneColorStrips" : 1,
     "https"             : false,
-    "port"              : 80
+    "port"              : 80,
+    "stripNames"        : ["Under bed", "End table"]
 }

@@ -6,7 +6,13 @@ console.log("Socket connected to",loc);
 var curFade = '';
 var reachable = false;
 
+var colorOverlay = null;
+
 var config = {};
+
+// Each status can be: { "pattern": "xxx" } or { "color": [r, g, b] }
+// For each led strip, first all multicolored, then one-color strips
+var serverCurStatus = []
 
 $(document).ready(function() {
     colorsLocked = localStorage.getItem('locked');
@@ -22,7 +28,10 @@ $(document).ready(function() {
 
     $.getJSON('js/config.json', function(data) {
         config = data;
-        setupStripButtons(config.numStrips + config.numOneColorStrips);
+        setupStripButtons(
+            config.numStrips + config.numOneColorStrips, 
+            (config.stripNames || [])
+        );
     });
 });
 
@@ -60,15 +69,33 @@ socket.on('error', function(err) {
     console.log(err);
 });
 
-function setupStripButtons(numButtons) {
+function setupStripButtons(numButtons, stripNames=[]) {
+    var buttonFunc = function(index) {
+        var curRGB = [0,0,0];
+        if (serverCurStatus.length > index) {
+            if ("color" in serverCurStatus[index]) {
+                curRGB = serverCurStatus[index]["color"];
+            }
+        }
+        showColorOverlay(true, curRGB, index)
+    };
     var container = document.getElementById('strip-buttons');
     for (var i=0; i<numButtons; i++) {
         var button = document.createElement('button');
         button.className = 'colorbtn';
         button.id = 'cc'+(i+1);
-        button.innerText = 'Strip '+(i+1);
+        button.data_strip = i;
+        var stripName = 
+            stripNames.length-1 >= i ? 
+                stripNames[i] :
+                "Strip "+(i+1)
+        button.innerText = stripName;
+        button.onclick = function(event) {
+            buttonFunc(event.target.data_strip);
+        }
         container.appendChild(button);
 
+        /*
         var colorPicker = new jscolor(button, {
             width: ($(button).innerWidth()*0.8),
             position: "center",
@@ -76,6 +103,7 @@ function setupStripButtons(numButtons) {
             styleElement: null
         });
         colorPicker.onFineChange = colorUpdated.bind(null, colorPicker, i);
+        */
     }
     buttons = $(".colorbtn");
     lockIconClicked();
@@ -100,18 +128,20 @@ function disableButtons(enabled) {
     }
 }
 
+//Strip is #, Color is [r,g,b]
 function setLocalColor(strip, color) {
     var elem = 'cc'+(strip+1);
-
-    //console.log('Setting '+elem+' to '+JSON.stringify(color));
 
     if (document.getElementById(elem)) {
         document.getElementById(elem).style.background = 
             rgbToHex(color[0], color[1], color[2]);
-        //$('#'+elem).prop('value', rgbToHex(color[0], color[1], color[2]));
         $('#'+elem).css('color', 
             getTextColorForBackground(color[0], color[1], color[2])
         );
+    }
+
+    if (colorOverlay && colorOverlay.curStrip === strip) {
+        colorOverlay.updateToRGB(color);
     }
 }
 
@@ -127,6 +157,7 @@ function post(data) {
     }
 }
 
+/*
 function lockIconClicked() {
     if (!buttons) {
         return;
@@ -152,6 +183,7 @@ function lockIconClicked() {
         buttons.removeClass(cls);
     }
 }
+*/
 
 function deselectPreset() {
     $('.button-selected').blur();
@@ -199,6 +231,7 @@ function getTextColorForBackground(r, g, b) {
     return bOrW ? '#FFF' : '#000';
 }
 
+/*
 function colorUpdated(picker, buttonNum) {
     console.log("Picker", picker);
     console.log("BN", buttonNum);
@@ -215,6 +248,30 @@ function colorUpdated(picker, buttonNum) {
         post(color);
     } else {
         color.strip = buttonNum
+        post(color);
+    }
+}
+*/
+
+// If strip num > number of strips or < 0, sets all strips
+function colorUpdated(stripNum, newRGB) {
+
+    console.log("Strip "+stripNum+" updated: "+newRGB);
+
+    var color = {};
+    color.r = Math.round(newRGB[0]);
+    color.g = Math.round(newRGB[1]);
+    color.b = Math.round(newRGB[2]);
+    color.strip = [];
+
+    var allStrips = config.numStrips + config.numOneColorStrips || 0;
+
+    if (stripNum < 0 || stripNum >= allStrips) {
+        color.strip = arrayOfNumbersUpTo(
+            config.numStrips + config.numOneColorStrips);
+        post(color);
+    } else {
+        color.strip = stripNum
         post(color);
     }
 }
@@ -329,7 +386,6 @@ function setupConfig(options) {
                 elem.checked = option.displayValue;
             }
         }
-
         
         rowElem.appendChild(lLabel);
         rowElem.appendChild(rLabel);
@@ -337,4 +393,339 @@ function setupConfig(options) {
         docFrag.appendChild(rowElem);
     }
     container.appendChild(docFrag);
+}
+
+function showColorOverlay(visible, startRGB, stripId=-1) {
+    var overlayContainer = document.getElementById("color-overlay-container");
+    overlayContainer.style.visibility = visible ? "visible":"hidden";
+
+    overlayContainer.onclick = function(e) {
+        if (e.target === overlayContainer) {
+            showColorOverlay(false);
+        }
+    }
+
+    if (visible) {
+        colorOverlay = new ColorPicker(
+            "color-picker-canvas", 
+            "color-preview-div",
+            function(rgb, chosenStripId) {
+                colorUpdated(chosenStripId, rgb);
+            },
+            startRGB
+        );
+        colorOverlay.curStrip = stripId;
+    } else {
+        colorOverlay = null;
+    }
+}
+
+function rgbStringFromColorArray(colorArr=[0,0,0]) {
+    if (colorArr.length > 3) {
+        return "rgba(" +
+            colorArr[0]+","+
+            colorArr[1]+","+
+            colorArr[2]+","+
+            colorArr[3]+
+            ")";
+    }
+
+    return "rgba(" +
+        colorArr[0]+","+
+        colorArr[1]+","+
+        colorArr[2]+",1.0)";
+}
+
+class ColorPicker {
+    constructor(canvasId, previewElemId=null, 
+        onColorPicked=null, startRGB=[0,0,0]) {
+
+        this.canvas = document.getElementById(canvasId);
+        var hsv = rgbToHsl(startRGB[0], startRGB[1], startRGB[2]);
+        this.hue = hsv[0] || 0.;        // 0 - 1
+        this.saturation = 1.0;     // 0 - 1
+        this.brightness = hsv[2] || 0.; // 0 - 1
+        this.createColorOverlay();
+        this.updatePreview();
+        this.me = this;
+        this.previewElem = document.getElementById(previewElemId) || null;
+        this.curStrip = -1;
+
+        //Callback function, ([R,G,B], stripId)
+        this.onColorPicked = onColorPicked;
+    }
+
+    //Returns [r, g, b]
+    getCurRGB() {
+        return hslToRgb(
+            this.hue,
+            this.saturation,
+            this.brightness
+        );
+    }
+
+    updateToRGB(newRGB) {
+        var hsv = rgbToHsl(newRGB[0], newRGB[1], newRGB[2]);
+        this.hue = hsv[0];
+        this.saturation = 1.0;
+        this.brightness = hsv[2];
+
+        this.createColorOverlay();
+    }
+
+    createColorOverlay() {
+        var ctx = this.canvas.getContext('2d');
+
+        var width = this.canvas.offsetWidth, height = this.canvas.offsetHeight;
+        
+        ctx.clearRect(0,0, width, height);
+
+        var pageMargin = 50; //px
+
+        var pickerCenter = width / 2.;
+        var brightnessBarWidth = (width - (pageMargin * 2.)) * .15;
+
+        var circleRadius = Math.min(
+            (width - (pageMargin * 3.) - brightnessBarWidth) / 2.,
+            (height - (pageMargin * 2.)) / 2.
+        );
+        var circleCenterX = pageMargin + circleRadius;
+        var circleCenterY = height / 2.;
+
+        var PI2 = Math.PI * 2.;
+        ctx.lineWidth = 1;
+
+        var radIncr = Math.PI / 40.;
+        for (var rad=0.0; rad<PI2; rad += radIncr) {
+            var hue = ( rad / PI2 ) * 1.0;
+            var rgb = hslToRgb(hue, 1.0, 0.5);
+
+            ctx.fillStyle = rgbStringFromColorArray(rgb);
+            ctx.strokeStyle = ctx.fillStyle;
+
+            ctx.beginPath();
+            ctx.moveTo(circleCenterX, circleCenterY);
+            var endX = (circleRadius * Math.cos(rad)) + circleCenterX;
+            var endY = (circleRadius * Math.sin(rad)) + circleCenterY;
+            ctx.lineTo(endX, endY);
+
+            endX = (circleRadius * Math.cos(rad+radIncr)) + circleCenterX;
+            endY = (circleRadius * Math.sin(rad+radIncr)) + circleCenterY;
+            ctx.lineTo(endX, endY);
+            ctx.lineTo(circleCenterX, circleCenterY);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.closePath();
+        }
+
+        ctx.lineWidth = 1;
+
+        var brightnessBarHeight = height - (pageMargin * 2.);
+        var brightnessBarXMin = width - pageMargin - brightnessBarWidth;
+
+        var rgbFullSat = hslToRgb(this.hue, 1.0, 0.5);
+        var gradient = ctx.createLinearGradient(0,pageMargin,0,pageMargin+brightnessBarHeight);
+        gradient.addColorStop(0, "white");
+        gradient.addColorStop(0.5, rgbStringFromColorArray(rgbFullSat));
+        gradient.addColorStop(1, "black");
+        ctx.beginPath();
+        ctx.rect(
+            brightnessBarXMin, pageMargin,
+            brightnessBarWidth, brightnessBarHeight
+        );
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        ctx.strokeStyle = "black";
+        ctx.stroke();
+        ctx.closePath();
+
+        ctx.beginPath();
+        ctx.rect(
+            brightnessBarXMin - 4, 
+            (pageMargin - 5) + ((1-this.brightness) * brightnessBarHeight),
+            brightnessBarWidth + 8, 10
+        )
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = rgbStringFromColorArray([100, 100, 100]);
+        ctx.stroke();
+        ctx.closePath();
+
+        var me = this; // me = current object
+
+        var mouseEvent = function(e) {
+            var clickX = e.offsetX;
+            var clickY = e.offsetY;
+
+            if (e.buttons == 1) {
+                if (clickX >= pageMargin &&
+                    clickX <= pageMargin + (circleRadius * 2.) &&
+                    clickY >= pageMargin &&
+                    clickY <= pageMargin + (circleRadius * 2.)
+                    ) {
+
+                    me.colorWheelClick(
+                        clickX, clickY,
+                        circleCenterX, circleCenterY, circleRadius
+                    );
+                } else if (
+                    clickX >= width - pageMargin - brightnessBarWidth &&
+                    clickX <= width - pageMargin &&
+                    clickY >= pageMargin &&
+                    clickY <= height - pageMargin
+                    ) {
+                    me.brightnessBarClick(
+                        clickX, clickY, 
+                        pageMargin, pageMargin + brightnessBarHeight
+                    );
+                }
+            }
+        }
+
+        this.canvas.onmousemove = mouseEvent;
+        this.canvas.onmousedown = mouseEvent;
+    }
+
+    colorWheelClick(clickX, clickY, 
+        colorWheelCenterX, colorWheelCenterY, colorWheelRadius) {
+
+        var wheelOffsetX = clickX - colorWheelCenterX;
+        var wheelOffsetY = clickY - colorWheelCenterY;
+
+        var distanceClickFromCenter = Math.sqrt(
+            Math.pow( wheelOffsetX, 2.0 ) +
+            Math.pow( wheelOffsetY, 2.0 )
+        );
+
+        if (distanceClickFromCenter > colorWheelRadius) {
+            //Click was outside of color wheel
+            return
+        }
+
+        var angle = Math.atan2(wheelOffsetY, wheelOffsetX);
+
+        var hue = angle/(Math.PI * 2.);
+
+        var rgb = hslToRgb(hue, 1.0, 0.5);
+        this.setHue(hue);
+        this.createColorOverlay();
+    }
+
+    brightnessBarClick(clickX, clickY, 
+        brightnessBarMinY, brightnessBarMaxY) {
+        var brightness = 
+            (clickY-brightnessBarMinY) /
+            (brightnessBarMaxY-brightnessBarMinY);
+        this.setBrightness(1 - brightness);
+        this.createColorOverlay();
+    }
+
+    setHue(hue) {
+        this.hue = hue;
+        this.updatePreview();
+    }
+
+    setBrightness(brightness) {
+        var brightnessDeadZone = 0.05;
+        if (brightness > (1.0 - brightnessDeadZone)) { brightness = 1.0; }
+        else if (brightness < brightnessDeadZone) { brightness = 0.0; }
+        this.brightness = brightness;
+        this.updatePreview();
+    }
+
+    updatePreview() {
+        var rgb = this.getCurRGB();
+
+        if (this.previewElem) {
+            if (this.brightness >= 0.5) {
+                var gray = Math.round(
+                    255.-(255.*((this.brightness - .5)/.5))
+                );
+
+                this.previewElem.style.border = "1px solid " + 
+                    rgbStringFromColorArray([gray, gray, gray]);
+            } else {
+                this.previewElem.style.border = "none";
+            }
+
+            this.previewElem.style.backgroundColor = 
+                rgbStringFromColorArray(rgb);
+        }
+
+        if (this.onColorPicked) {
+            this.onColorPicked(rgb, this.curStrip >= 0 ? this.curStrip : -1);
+        }
+    }
+}
+
+/**
+ * https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
+ * Converts an HSL color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes h, s, and l are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  l       The lightness
+ * @return  Array           The RGB representation [r,g,b]
+ */
+function hslToRgb(h, s, l){
+    var r, g, b;
+
+    if(s == 0){
+        r = g = b = l; // achromatic
+    }else{
+        var hue2rgb = function hue2rgb(p, q, t){
+            if(t < 0) t += 1;
+            if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t;
+            if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+/**
+ * https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
+ * Converts an RGB color value to HSL. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes r, g, and b are contained in the set [0, 255] and
+ * returns h, s, and l in the set [0, 1].
+ *
+ * @param   {number}  r       The red color value
+ * @param   {number}  g       The green color value
+ * @param   {number}  b       The blue color value
+ * @return  {Array}           The HSL representation
+ */
+function rgbToHsl(r, g, b){
+    r /= 255, g /= 255, b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+
+    if(max == min){
+        h = s = 0; // achromatic
+    }else{
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max){
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    return [h, s, l];
 }
