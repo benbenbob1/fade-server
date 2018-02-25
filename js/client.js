@@ -77,6 +77,8 @@ function setupStripButtons(numButtons, stripNames=[]) {
                 curRGB = serverCurStatus[index]["color"];
             }
         }
+        console.log("Read color for strip "+index+" as "+curRGB);
+        console.log(serverCurStatus);
         showColorOverlay(true, curRGB, index)
     };
     var container = document.getElementById('strip-buttons');
@@ -139,6 +141,9 @@ function setLocalColor(strip, color) {
             getTextColorForBackground(color[0], color[1], color[2])
         );
     }
+
+    serverCurStatus[strip] = {"color": color};
+    
 
     if (colorOverlay && colorOverlay.curStrip === strip) {
         colorOverlay.updateToRGB(color);
@@ -255,8 +260,6 @@ function colorUpdated(picker, buttonNum) {
 
 // If strip num > number of strips or < 0, sets all strips
 function colorUpdated(stripNum, newRGB) {
-
-    console.log("Strip "+stripNum+" updated: "+newRGB);
 
     var color = {};
     color.r = Math.round(newRGB[0]);
@@ -451,6 +454,8 @@ class ColorPicker {
         this.previewElem = document.getElementById(previewElemId) || null;
         this.curStrip = -1;
 
+        this.hueCircleDrawn = false;
+
         //Callback function, ([R,G,B], stripId)
         this.onColorPicked = onColorPicked;
     }
@@ -467,18 +472,48 @@ class ColorPicker {
     updateToRGB(newRGB) {
         var hsv = rgbToHsl(newRGB[0], newRGB[1], newRGB[2]);
         this.hue = hsv[0];
-        this.saturation = 1.0;
+        this.saturation = hsv[1];
         this.brightness = hsv[2];
 
         this.createColorOverlay();
+        this.updatePreview(false);
+    }
+
+    createHuePicker(context, centerX, centerY, radius) {
+        var PI2 = Math.PI * 2.;
+        context.lineWidth = 1;
+
+        var radIncr = Math.PI / 40.;
+        for (var rad=0.0; rad<PI2; rad += radIncr) {
+            var hue = ( rad / PI2 ) * 1.0;
+            var rgb = hslToRgb(hue, 1.0, 0.5);
+
+            context.fillStyle = rgbStringFromColorArray(rgb);
+            context.strokeStyle = context.fillStyle;
+
+            context.beginPath();
+            context.moveTo(centerX, centerY);
+            var endX = (radius * Math.cos(rad)) + centerX;
+            var endY = (radius * Math.sin(rad)) + centerY;
+            context.lineTo(endX, endY);
+
+            endX = (radius * Math.cos(rad+radIncr)) + centerX;
+            endY = (radius * Math.sin(rad+radIncr)) + centerY;
+            context.lineTo(endX, endY);
+            context.lineTo(centerX, centerY);
+            context.fill();
+            context.stroke();
+
+            context.closePath();
+        }
+
+        this.hueCircleDrawn = true;
     }
 
     createColorOverlay() {
         var ctx = this.canvas.getContext('2d');
 
         var width = this.canvas.offsetWidth, height = this.canvas.offsetHeight;
-        
-        ctx.clearRect(0,0, width, height);
 
         var pageMargin = 50; //px
 
@@ -492,31 +527,17 @@ class ColorPicker {
         var circleCenterX = pageMargin + circleRadius;
         var circleCenterY = height / 2.;
 
-        var PI2 = Math.PI * 2.;
-        ctx.lineWidth = 1;
+        var clearMinX = circleCenterX + circleRadius + 2;
 
-        var radIncr = Math.PI / 40.;
-        for (var rad=0.0; rad<PI2; rad += radIncr) {
-            var hue = ( rad / PI2 ) * 1.0;
-            var rgb = hslToRgb(hue, 1.0, 0.5);
+        ctx.clearRect(
+            clearMinX, 0,
+            width - clearMinX, height
+        );
 
-            ctx.fillStyle = rgbStringFromColorArray(rgb);
-            ctx.strokeStyle = ctx.fillStyle;
-
-            ctx.beginPath();
-            ctx.moveTo(circleCenterX, circleCenterY);
-            var endX = (circleRadius * Math.cos(rad)) + circleCenterX;
-            var endY = (circleRadius * Math.sin(rad)) + circleCenterY;
-            ctx.lineTo(endX, endY);
-
-            endX = (circleRadius * Math.cos(rad+radIncr)) + circleCenterX;
-            endY = (circleRadius * Math.sin(rad+radIncr)) + circleCenterY;
-            ctx.lineTo(endX, endY);
-            ctx.lineTo(circleCenterX, circleCenterY);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.closePath();
+        if (!this.hueCircleDrawn) {
+            this.createHuePicker(
+                ctx, circleCenterX, circleCenterY, circleRadius
+            );
         }
 
         ctx.lineWidth = 1;
@@ -525,7 +546,10 @@ class ColorPicker {
         var brightnessBarXMin = width - pageMargin - brightnessBarWidth;
 
         var rgbFullSat = hslToRgb(this.hue, 1.0, 0.5);
-        var gradient = ctx.createLinearGradient(0,pageMargin,0,pageMargin+brightnessBarHeight);
+        var gradient = ctx.createLinearGradient(
+            0, pageMargin,
+            0, pageMargin + brightnessBarHeight
+        );
         gradient.addColorStop(0, "white");
         gradient.addColorStop(0.5, rgbStringFromColorArray(rgbFullSat));
         gradient.addColorStop(1, "black");
@@ -635,7 +659,8 @@ class ColorPicker {
         this.updatePreview();
     }
 
-    updatePreview() {
+    //Should send return function?
+    updatePreview(sendToDelegate=true) {
         var rgb = this.getCurRGB();
 
         if (this.previewElem) {
@@ -654,7 +679,7 @@ class ColorPicker {
                 rgbStringFromColorArray(rgb);
         }
 
-        if (this.onColorPicked) {
+        if (sendToDelegate && this.onColorPicked) {
             this.onColorPicked(rgb, this.curStrip >= 0 ? this.curStrip : -1);
         }
     }
