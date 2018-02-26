@@ -343,6 +343,7 @@ button.colorbtn.offline {
     left: 0;
     right: 0;
     visibility: hidden;
+    transition: 0.1s linear all;
 }
 
 #color-overlay-modal {

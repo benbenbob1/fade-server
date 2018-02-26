@@ -1,7 +1,8 @@
 var colorsLocked;
 var buttons = null;
 var loc = document.location.origin;
-var socket = io.connect(loc);
+//var socket = io.connect(loc);
+var socket = io.connect("10.0.1.58:7890");
 console.log("Socket connected to",loc);
 var curFade = '';
 var reachable = false;
@@ -69,18 +70,19 @@ socket.on('error', function(err) {
     console.log(err);
 });
 
-function setupStripButtons(numButtons, stripNames=[]) {
-    var buttonFunc = function(index) {
-        var curRGB = [0,0,0];
-        if (serverCurStatus.length > index) {
-            if ("color" in serverCurStatus[index]) {
-                curRGB = serverCurStatus[index]["color"];
-            }
+function stripButtonPressed(buttonIdx) {
+    var curRGB = [0,0,0];
+    if (serverCurStatus.length > buttonIdx) {
+        if ("color" in serverCurStatus[buttonIdx]) {
+            curRGB = serverCurStatus[buttonIdx]["color"];
         }
-        console.log("Read color for strip "+index+" as "+curRGB);
-        console.log(serverCurStatus);
-        showColorOverlay(true, curRGB, index)
-    };
+    }
+    //console.log("Read color for strip "+index+" as "+curRGB);
+    //console.log(serverCurStatus);
+    showColorOverlay(true, curRGB, buttonIdx);
+}
+
+function setupStripButtons(numButtons, stripNames=[]) {
     var container = document.getElementById('strip-buttons');
     for (var i=0; i<numButtons; i++) {
         var button = document.createElement('button');
@@ -93,7 +95,7 @@ function setupStripButtons(numButtons, stripNames=[]) {
                 "Strip "+(i+1)
         button.innerText = stripName;
         button.onclick = function(event) {
-            buttonFunc(event.target.data_strip);
+            stripButtonPressed(event.target.data_strip);
         }
         container.appendChild(button);
 
@@ -108,7 +110,6 @@ function setupStripButtons(numButtons, stripNames=[]) {
         */
     }
     buttons = $(".colorbtn");
-    lockIconClicked();
 }
 
 function disableButtons(enabled) {
@@ -400,7 +401,16 @@ function setupConfig(options) {
 
 function showColorOverlay(visible, startRGB, stripId=-1) {
     var overlayContainer = document.getElementById("color-overlay-container");
-    overlayContainer.style.visibility = visible ? "visible":"hidden";
+
+    if (visible) {
+        overlayContainer.style.visibility = "visible";
+        overlayContainer.style.opacity = "1.0";
+    } else {
+        overlayContainer.style.opacity = "0.0";
+        setTimeout(function(){
+            overlayContainer.style.visibility = "hidden";
+        }, 100);
+    }
 
     overlayContainer.onclick = function(e) {
         if (e.target === overlayContainer) {
@@ -449,8 +459,7 @@ class ColorPicker {
         this.saturation = 1.0;     // 0 - 1
         this.brightness = hsv[2] || 0.; // 0 - 1
         this.createColorOverlay();
-        this.updatePreview();
-        this.me = this;
+        this.me = this; //boo javascript
         this.previewElem = document.getElementById(previewElemId) || null;
         this.curStrip = -1;
 
@@ -458,6 +467,8 @@ class ColorPicker {
 
         //Callback function, ([R,G,B], stripId)
         this.onColorPicked = onColorPicked;
+
+        this.updatePreview();
     }
 
     //Returns [r, g, b]
@@ -470,9 +481,12 @@ class ColorPicker {
     }
 
     updateToRGB(newRGB) {
+        console.log("Calling remote update "+newRGB);
         var hsv = rgbToHsl(newRGB[0], newRGB[1], newRGB[2]);
         this.hue = hsv[0];
-        this.saturation = hsv[1];
+        //should be this.saturation = hsv[1];
+        //but instead
+        this.saturation = 1.0;
         this.brightness = hsv[2];
 
         this.createColorOverlay();
@@ -521,7 +535,7 @@ class ColorPicker {
         var brightnessBarWidth = (width - (pageMargin * 2.)) * .15;
 
         var circleRadius = Math.min(
-            (width - (pageMargin * 3.) - brightnessBarWidth) / 2.,
+            (width - (pageMargin * 2.) - brightnessBarWidth) / 2.,
             (height - (pageMargin * 2.)) / 2.
         );
         var circleCenterX = pageMargin + circleRadius;
@@ -629,10 +643,8 @@ class ColorPicker {
         }
 
         var angle = Math.atan2(wheelOffsetY, wheelOffsetX);
-
         var hue = angle/(Math.PI * 2.);
 
-        var rgb = hslToRgb(hue, 1.0, 0.5);
         this.setHue(hue);
         this.createColorOverlay();
     }
@@ -648,19 +660,26 @@ class ColorPicker {
 
     setHue(hue) {
         this.hue = hue;
-        this.updatePreview();
+        this.onParamSet();
     }
 
     setBrightness(brightness) {
-        var brightnessDeadZone = 0.05;
+        var brightnessDeadZone = 0.04;
         if (brightness > (1.0 - brightnessDeadZone)) { brightness = 1.0; }
         else if (brightness < brightnessDeadZone) { brightness = 0.0; }
         this.brightness = brightness;
-        this.updatePreview();
+        this.onParamSet();
     }
 
-    //Should send return function?
-    updatePreview(sendToDelegate=true) {
+    onParamSet() {
+        var rgb = this.getCurRGB();
+        if (this.onColorPicked) {
+            this.onColorPicked(rgb, this.curStrip >= 0 ? this.curStrip : -1);
+        }
+    }
+
+    //Should execute return function?
+    updatePreview() {
         var rgb = this.getCurRGB();
 
         if (this.previewElem) {
@@ -677,10 +696,6 @@ class ColorPicker {
 
             this.previewElem.style.backgroundColor = 
                 rgbStringFromColorArray(rgb);
-        }
-
-        if (sendToDelegate && this.onColorPicked) {
-            this.onColorPicked(rgb, this.curStrip >= 0 ? this.curStrip : -1);
         }
     }
 }

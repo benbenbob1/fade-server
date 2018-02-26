@@ -235,7 +235,7 @@ function connectSocket() {
                 config: pattern.options
             });
         } else {
-            broadcastColor(socket);
+            broadcastColor(socket); //send all colors to new socket connection
         }
 
         socket.on('newcolor', function(data) {
