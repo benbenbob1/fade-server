@@ -1,8 +1,8 @@
 var colorsLocked;
 var buttons = null;
 var loc = document.location.origin;
-//var socket = io.connect(loc);
-var socket = io.connect("10.0.1.58:7890");
+var socket = io.connect(loc);
+//var socket = io.connect("10.0.1.58:7890");
 console.log("Socket connected to",loc);
 var curFade = '';
 var reachable = false;
@@ -11,7 +11,7 @@ var colorOverlay = null;
 
 var config = {};
 
-// Each status can be: { "pattern": "xxx" } or { "color": [r, g, b] }
+// Each status can be: { "pattern": "xxx" } or { "color": [h, s, v] }
 // For each led strip, first all multicolored, then one-color strips
 var serverCurStatus = []
 
@@ -38,10 +38,10 @@ $(document).ready(function() {
 
 
 socket.on('color', function(data) {
-    //console.log('Rec: '+JSON.stringify(data));
+    //console.log('Client rec: '+JSON.stringify(data));
     if ('strip' in data) {
         deselectPreset();
-        setLocalColor(data.strip, [data.r, data.g, data.b]);
+        setLocalColor(data.strip, [data.h, data.s, data.v]);
     } else if ('id' in data) {
         deselectPreset();
         if (data.id != 'stop') {
@@ -70,16 +70,16 @@ socket.on('error', function(err) {
     console.log(err);
 });
 
-function stripButtonPressed(buttonIdx) {
-    var curRGB = [0,0,0];
+function stripButtonPressed(buttonIdx, stripName="") {
+    var curHSV = [0.0,0.0,0.0];
     if (serverCurStatus.length > buttonIdx) {
         if ("color" in serverCurStatus[buttonIdx]) {
-            curRGB = serverCurStatus[buttonIdx]["color"];
+            curHSV = serverCurStatus[buttonIdx]["color"];
         }
     }
     //console.log("Read color for strip "+index+" as "+curRGB);
     //console.log(serverCurStatus);
-    showColorOverlay(true, curRGB, buttonIdx);
+    showColorOverlay(true, curHSV, buttonIdx, stripName);
 }
 
 function setupStripButtons(numButtons, stripNames=[]) {
@@ -95,7 +95,7 @@ function setupStripButtons(numButtons, stripNames=[]) {
                 "Strip "+(i+1)
         button.innerText = stripName;
         button.onclick = function(event) {
-            stripButtonPressed(event.target.data_strip);
+            stripButtonPressed(event.target.data_strip, event.target.innerText);
         }
         container.appendChild(button);
 
@@ -131,23 +131,25 @@ function disableButtons(enabled) {
     }
 }
 
-//Strip is #, Color is [r,g,b]
-function setLocalColor(strip, color) {
+//Strip is #, Color is [h,s,v]
+function setLocalColor(strip, hsv) {
     var elem = 'cc'+(strip+1);
 
     if (document.getElementById(elem)) {
+        var rgb = hslToRgb(hsv[0], hsv[1], hsv[2])
+
         document.getElementById(elem).style.background = 
-            rgbToHex(color[0], color[1], color[2]);
+            rgbToHex(rgb[0], rgb[1], rgb[2]);
         $('#'+elem).css('color', 
-            getTextColorForBackground(color[0], color[1], color[2])
+            getTextColorForBackground(rgb[0], rgb[1], rgb[2])
         );
     }
 
-    serverCurStatus[strip] = {"color": color};
+    serverCurStatus[strip] = {"color": hsv};
     
 
     if (colorOverlay && colorOverlay.curStrip === strip) {
-        colorOverlay.updateToRGB(color);
+        colorOverlay.updatePreview(hsv);
     }
 }
 
@@ -260,12 +262,12 @@ function colorUpdated(picker, buttonNum) {
 */
 
 // If strip num > number of strips or < 0, sets all strips
-function colorUpdated(stripNum, newRGB) {
+function colorUpdated(stripNum, newHSV) {
 
     var color = {};
-    color.r = Math.round(newRGB[0]);
-    color.g = Math.round(newRGB[1]);
-    color.b = Math.round(newRGB[2]);
+    color.h = newHSV[0];
+    color.s = newHSV[1];
+    color.v = newHSV[2];
     color.strip = [];
 
     var allStrips = config.numStrips + config.numOneColorStrips || 0;
@@ -399,8 +401,10 @@ function setupConfig(options) {
     container.appendChild(docFrag);
 }
 
-function showColorOverlay(visible, startRGB, stripId=-1) {
+//startHSV is [h, s, v]
+function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
     var overlayContainer = document.getElementById("color-overlay-container");
+    var closeButton = document.getElementById("color-overlay-button-close");
 
     if (visible) {
         overlayContainer.style.visibility = "visible";
@@ -412,22 +416,27 @@ function showColorOverlay(visible, startRGB, stripId=-1) {
         }, 100);
     }
 
-    overlayContainer.onclick = function(e) {
-        if (e.target === overlayContainer) {
+    overlayContainer.onclick = function(event) {
+        if (event.target === overlayContainer) {
             showColorOverlay(false);
         }
-    }
+    };
+    closeButton.onclick = function(event) {
+        showColorOverlay(false);
+    };
 
     if (visible) {
         colorOverlay = new ColorPicker(
             "color-picker-canvas", 
             "color-preview-div",
-            function(rgb, chosenStripId) {
-                colorUpdated(chosenStripId, rgb);
+            "color-overlay-modal",
+            function(hsv, chosenStripId) {
+                colorUpdated(chosenStripId, hsv);
             },
-            startRGB
+            startHSV
         );
         colorOverlay.curStrip = stripId;
+        colorOverlay.setPreviewName(stripName);
     } else {
         colorOverlay = null;
     }
@@ -450,16 +459,14 @@ function rgbStringFromColorArray(colorArr=[0,0,0]) {
 }
 
 class ColorPicker {
-    constructor(canvasId, previewElemId=null, 
-        onColorPicked=null, startRGB=[0,0,0]) {
-
+    constructor(canvasId, previewElemId=null, modalElemId=null, 
+        onColorPicked=null, startHSV=[0.,0.,0.]) {
         this.canvas = document.getElementById(canvasId);
-        var hsv = rgbToHsl(startRGB[0], startRGB[1], startRGB[2]);
-        this.hue = hsv[0] || 0.;        // 0 - 1
+        this.modal = document.getElementById(modalElemId);
+        this.hue = startHSV[0] || 0.;        // 0 - 1
         this.saturation = 1.0;     // 0 - 1
-        this.brightness = hsv[2] || 0.; // 0 - 1
+        this.brightness = startHSV[2] || 0.; // 0 - 1
         this.createColorOverlay();
-        this.me = this; //boo javascript
         this.previewElem = document.getElementById(previewElemId) || null;
         this.curStrip = -1;
 
@@ -468,7 +475,26 @@ class ColorPicker {
         //Callback function, ([R,G,B], stripId)
         this.onColorPicked = onColorPicked;
 
-        this.updatePreview();
+        this.updatePreview(startHSV);
+
+        var me = this; // me = current object
+        window.onresize = function(e) {
+            me.resizeModal();
+        }
+
+        this.resizeModal();
+    }
+
+    resizeModal() {
+        var smallClass = "modal-container-short"
+        if (this.modal) {
+            if (window.innerHeight < this.modal.offsetHeight) {
+                //Window too short for modal
+                this.modal.classList.add(smallClass);
+            } else {
+                this.modal.classList.remove(smallClass);
+            }
+        }
     }
 
     //Returns [r, g, b]
@@ -480,24 +506,36 @@ class ColorPicker {
         );
     }
 
-    updateToRGB(newRGB) {
-        console.log("Calling remote update "+newRGB);
-        var hsv = rgbToHsl(newRGB[0], newRGB[1], newRGB[2]);
-        this.hue = hsv[0];
+    //Returns [h, s, v]
+    getCurHSV() {
+        return [this.hue, this.saturation, this.brightness];
+    }
+
+    updateToHSV(newHSV) {
+        console.log("Calling remote update "+newHSV);
+        this.hue = newHSV[0];
         //should be this.saturation = hsv[1];
         //but instead
         this.saturation = 1.0;
-        this.brightness = hsv[2];
+        this.brightness = newHSV[2];
 
         this.createColorOverlay();
-        this.updatePreview(false);
+        this.updatePreview(newHSV);
     }
 
     createHuePicker(context, centerX, centerY, radius) {
         var PI2 = Math.PI * 2.;
+        
+        context.lineWidth = 4;
+        context.strokeStyle = "gray";
+        context.beginPath();
+        context.arc(centerX, centerY, radius, 0, PI2, false);
+        context.stroke();
+        context.closePath();
+
         context.lineWidth = 1;
 
-        var radIncr = Math.PI / 40.;
+        var radIncr = Math.PI / 32.;
         for (var rad=0.0; rad<PI2; rad += radIncr) {
             var hue = ( rad / PI2 ) * 1.0;
             var rgb = hslToRgb(hue, 1.0, 0.5);
@@ -520,6 +558,8 @@ class ColorPicker {
 
             context.closePath();
         }
+
+
 
         this.hueCircleDrawn = true;
     }
@@ -672,30 +712,28 @@ class ColorPicker {
     }
 
     onParamSet() {
-        var rgb = this.getCurRGB();
+        var hsv = this.getCurHSV();
         if (this.onColorPicked) {
-            this.onColorPicked(rgb, this.curStrip >= 0 ? this.curStrip : -1);
+            this.onColorPicked(hsv, this.curStrip >= 0 ? this.curStrip : -1);
         }
     }
 
-    //Should execute return function?
-    updatePreview() {
-        var rgb = this.getCurRGB();
-
+    updatePreview(hsv) {
         if (this.previewElem) {
-            if (this.brightness >= 0.5) {
-                var gray = Math.round(
-                    255.-(255.*((this.brightness - .5)/.5))
-                );
-
-                this.previewElem.style.border = "1px solid " + 
-                    rgbStringFromColorArray([gray, gray, gray]);
-            } else {
-                this.previewElem.style.border = "none";
-            }
-
+            this.previewElem.style.borderColor = rgbStringFromColorArray(
+                [128, 128, 128, this.brightness]
+            );
+            var rgb = hslToRgb(hsv[0], hsv[1], hsv[2]);
             this.previewElem.style.backgroundColor = 
                 rgbStringFromColorArray(rgb);
+            this.previewElem.style.color = 
+                getTextColorForBackground(rgb[0], rgb[1], rgb[2]);
+        }
+    }
+
+    setPreviewName(newName) {
+        if (this.previewElem) {
+            this.previewElem.innerText = newName;
         }
     }
 }

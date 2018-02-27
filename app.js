@@ -45,7 +45,17 @@ var ledPins = {
     blue: 24
 };
 
-var stripStatus = Array(totalStrips).fill([255, 255, 255]);
+/*
+stripStatus = [
+    {
+        h: 0-1 //percent hue
+        s: 0-1 //percent saturation
+        v: 0-1 //percent value (brightness or lightness)
+    }
+]
+*/
+
+var stripStatus = Array(totalStrips).fill([0, 1, .5]);
 
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
@@ -235,17 +245,17 @@ function connectSocket() {
                 config: pattern.options
             });
         } else {
-            broadcastColor(socket); //send all colors to new socket connection
+            //send all colors to new socket connection
+            broadcastColorHSV(socket); 
         }
 
         socket.on('newcolor', function(data) {
-            log('Rec: '+JSON.stringify(data));
             if ('strip' in data) {
                 if (pattern != null) {
                     endPattern();
                 }
-                _writeColor(data.r, data.g, data.b, data.strip);
-                broadcastColor();
+                _writeColorHSV(data.h, data.s, data.v, data.strip);
+                broadcastColorHSV(false, data.strip);
             } else if ('id' in data) {
                 startPattern(data.id);
             } else if ('config' in data) {
@@ -261,30 +271,66 @@ function connectSocket() {
             }
         });
     });
+}
 
+//Socket or false, stripIdx
+function broadcastColorHSV(socket, stripIdx=-1) {
+    var out = socket || serverSocket;
+
+    var emit = function(stripIdxToSend) {
+        out.emit('color', {
+            h: stripStatus[stripIdxToSend][0],
+            s: stripStatus[stripIdxToSend][1],
+            v: stripStatus[stripIdxToSend][2],
+            strip: stripIdxToSend
+        });
+    }
+
+    if (stripIdx >= 0 && stripIdx < totalStrips) {
+        emit(stripIdx);
+    } else {
+        for (var s=0; s<stripStatus.length; s++) {
+            emit(s);
+        }
+    }
+    
+    
 }
 
 function broadcastColor(socket) {
+    console.log("Broadcasting RGB (converted)");
+
     if (socket) {
         for (var s=0; s<stripStatus.length; s++) {
-            socket.emit('color', {
-                r: stripStatus[s][0],
-                g: stripStatus[s][1],
-                b: stripStatus[s][2],
+            var rgb = hslToRgb(
+                stripStatus[s][0],
+                stripStatus[s][1],
+                stripStatus[s][2]
+            );
+
+            socket.emit('colorRGB', {
+                r: rgb[0],
+                g: rgb[1],
+                b: rgb[2],
                 strip: s
             });
         }
     } else {
         for (var s=0; s<stripStatus.length; s++) {
-            serverSocket.emit('color', {
-                r: stripStatus[s][0],
-                g: stripStatus[s][1],
-                b: stripStatus[s][2],
+            var rgb = hslToRgb(
+                stripStatus[s][0],
+                stripStatus[s][1],
+                stripStatus[s][2]
+            );
+
+            serverSocket.emit('colorRGB', {
+                r: rgb[s][0],
+                g: rgb[s][1],
+                b: rgb[s][2],
                 strip: s
             });
         }
     }
-    
 }
 
 function getColors() {
@@ -374,6 +420,39 @@ function hslToRgb(h, s, l){
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+/**
+ * https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
+ * Converts an RGB color value to HSL. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes r, g, and b are contained in the set [0, 255] and
+ * returns h, s, and l in the set [0, 1].
+ *
+ * @param   {number}  r       The red color value
+ * @param   {number}  g       The green color value
+ * @param   {number}  b       The blue color value
+ * @return  {Array}           The HSL representation
+ */
+function rgbToHsl(r, g, b){
+    r /= 255, g /= 255, b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+
+    if(max == min){
+        h = s = 0; // achromatic
+    }else{
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max){
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    return [h, s, l];
+}
+
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id) {
     if (id == 'stop') {
@@ -456,15 +535,15 @@ function endPattern(dontEmit) {
 }
 
 // [[r,g,b], [r,g,b]]
-function writeColors(colors) {
+function writeColors(rgbArr) {
     var leds = [];
-    for (var strip = 0; strip < colors.length; strip++) {
+    for (var strip = 0; strip < rgbArr.length; strip++) {
         var aStrip = [];
         for (var led = 0; led < config.ledsPerStrip; led++) {
             aStrip.push([
-                colors[strip][0],
-                colors[strip][1],
-                colors[strip][2],
+                rgbArr[strip][0],
+                rgbArr[strip][1],
+                rgbArr[strip][2],
             ]);
         }
         leds.push(aStrip);
@@ -526,12 +605,11 @@ function writeLEDs(arr, onestrip) {
 }
 
 //For writing to a non-fadecandy strip
-//color = [r,g,b]
-function writeOneColorStrip(color) {
-    log("Writing to "+config.numOneColorStrips+" strips");
-    var red = color[0]/255.0;
-    var green = color[1]/255.0;
-    var blue = color[2]/255.0;
+//rgb = [r,g,b]
+function writeOneColorStrip(rgb) {
+    var red = rgb[0]/255.0;
+    var green = rgb[1]/255.0;
+    var blue = rgb[2]/255.0;
     function write(pin, value) {
         return pin+"="+value+"\n";
     }
@@ -542,14 +620,52 @@ function writeOneColorStrip(color) {
     }
 }
 
-//r/g/b out of 255
-function _writeColor(r, g, b, strip) {
+//h/s/v out of 1.0
+function _writeColorHSV(h, s, v, strip) {
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
-            stripStatus[strip[i]] = [r,g,b];
+            stripStatus[strip[i]] = [h, s, v];
         }
     } else {
-        stripStatus[strip] = [r,g,b];
+        stripStatus[strip] = [h, s, v];
+    }
+
+    var stripStatusRGB = [];
+    for (var strip=0; strip<stripStatus.length; strip++) {
+        stripStatusRGB[strip] = hslToRgb(
+            stripStatus[strip][0],
+            stripStatus[strip][1],
+            stripStatus[strip][2]
+        );
+    }
+
+    if (stripStatus.length > config.numStrips) {
+        writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0]);
+    }
+
+    var toWrite = stripStatusRGB.slice(0,config.numStrips);
+
+    var leds = [];
+    for (var i=0; i<toWrite.length; i++) {
+        var stripLEDs = [];
+        for (var j=0; j<config.ledsPerStrip; j++) {
+            stripLEDs.push(stripStatusRGB[i]);
+        }
+        leds.push(stripLEDs);
+    }
+
+    return writeLEDs(leds, false);
+}
+
+//r/g/b out of 255
+function _writeColor(r, g, b, strip) {
+    var hsv = rgbToHsl(r,g,b);
+    if (Array.isArray(strip)) {
+        for (var i=0; i<strip.length; i++) {
+            stripStatus[strip[i]] = [hsv[0],hsv[1],hsv[2]];
+        }
+    } else {
+        stripStatus[strip] = [hsv[0],hsv[1],hsv[2]];
     }
 
     if (stripStatus.length > config.numStrips) {

@@ -59,6 +59,20 @@ var __configs = {
 	        }
         }
 	},
+	randomize: {
+		label: {
+            left: {
+                id: "",
+                text: "Randomize"
+            }
+        },
+        input: {
+            type: "checkbox",
+            update: function(value) {
+	        	this.options.randomize.value = value;
+	        }
+        }
+	},
 	brightness: {
 		label: {
             left: {
@@ -154,6 +168,7 @@ var patterns = {
 				config: __configs.saturation
 			}
 		},
+		requiresMultipleColors: false,
 		function: function() {
 			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
@@ -170,88 +185,6 @@ var patterns = {
 					[col[0], col[1], col[2]],
 					[col[0], col[1], col[2]]
 				]);
-			}
-		}
-	},
-	'rainbow-alternate': {
-		options: {
-			fade: {
-				displayValue: true,
-				defaultValue: true,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
-			brightness: {
-				displayValue: 50,
-				defaultValue: 0.5,
-				config: __configs.lightness
-			},
-			saturation: {
-				displayValue: 100,
-				defaultValue: 1.0,
-				config: __configs.saturation
-			}
-		},
-		function: function() {
-			this.patternHue += 0.05;
-			if (this.patternHue >= 1.0) {
-				this.patternHue = 0.0;
-			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
-			this.writeColor([
-				[col[0], col[1], col[2]],
-				[255-col[0], 255-col[1], 255-col[2]]
-			]);
-			if (!this.options.fade.value) {
-				this.writeColor([
-					[col[0], col[1], col[2]],
-					[255-col[0], 255-col[1], 255-col[2]]
-				]);
-			}
-		},
-	},
-	'switch': {
-		options: {
-			fade: {
-				displayValue: false,
-				defaultValue: false,
-				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 250,
-				config: __configs.interval_10_500
-			}
-		},
-		function: function() {
-			var curColors = this.getColors();
-			if (typeof curColors === "undefined") {
-				curColors = [
-					[255, 0, 0],
-					[0, 255, 0],
-					[0, 0, 255]
-				];
-			}
-			var count = curColors.length;
-			var max = count - 1;
-			var switched = true;
-			if (this.patternHue >= max || this.patternHue < 0 || this.patternHue % 1 != 0) {
-				this.patternHue = 0.0;
-			} else {
-				this.patternHue += 1.0;
-			}
-			var colors = [];
-			for (var strip=0; strip<count; strip++) {
-				var newStrip = (strip + this.patternHue) % count;
-				colors.push([curColors[newStrip][0], curColors[newStrip][1], curColors[newStrip][2]]);
-			}
-			this.writeColor(colors);
-			if (!this.options.fade.value) {
-				this.writeColor(colors);
 			}
 		}
 	},
@@ -273,6 +206,7 @@ var patterns = {
 				config: __configs.brightness
 			}
 		},
+		requiresMultipleColors: true,
 		function: function() {
 			var strips = [];
 			var stripCount = 2;
@@ -306,6 +240,11 @@ var patterns = {
 				defaultValue: true,
 				config: __configs.fade
 			},
+			randomize: {
+				displayValue: true,
+				defaultValue: true,
+				config: __configs.randomize
+			},
 			interval: {
 				displayValue: 100,
 				defaultValue: 500,
@@ -317,6 +256,7 @@ var patterns = {
 				config: __configs.brightness
 			}
 		},
+		requiresMultipleColors: true,
 		function: function() {
 			var strip = []; //one strip of 60 leds
 			var leds = 128;
@@ -356,9 +296,16 @@ var patterns = {
 				this.variables.bluePos = 0;
 			}
 
-			redPos += 10;
-			greenPos += 5;
-			bluePos += 1;
+			if (this.options.randomize.value) {
+				redPos += Math.random()*11;
+				greenPos += Math.random()*6;
+				bluePos += Math.random()*2;
+			} else {
+				redPos 	+= 10;
+				greenPos+= 5;
+				bluePos += 1;
+			}
+			
 			if (redPos > leds) {
 				redPos -= leds;
 			}
@@ -397,6 +344,7 @@ var patterns = {
 				config: __configs.saturation
 			}
 		},
+		requiresMultipleColors: true,
 		function: function() {
 			this.patternHue += 0.1;
 			if (this.patternHue > 1.0) {
@@ -416,17 +364,6 @@ var patterns = {
 			if (!this.options.fade.value) {
 				this.writeLEDs([strip, strip]);
 			}
-		}
-	},
-	'music-hue': {
-		options: {
-			interval: {
-				defaultValue: 0
-			}
-		},
-		function: function() {
-			console.log("This is a test");
-			return setInterval(pattern.function, 0.5);
 		}
 	}
 };

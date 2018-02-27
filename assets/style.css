@@ -1,10 +1,8 @@
 html {
-    height: 80%;
-    overflow: scroll;
 }
 
 body {
-    height: 100%;
+    overflow: hidden;
     background: #666;
     color: #ddd;
     font-size: 15px;
@@ -13,13 +11,13 @@ body {
 }
 
 #container {
-    top: 50%;
     display: block;
     position: relative;
-    transform: translateY(-40%);
 
     -webkit-user-select: none;
     user-select: none;
+
+    padding-top: 10%;
 }
 
 h1 {
@@ -333,7 +331,7 @@ button.colorbtn.offline {
 }
 
 #color-overlay-container {
-    z-index: 4;
+    z-index: 50;
     height: 100%;
     width: 100%;
     background-color: rgba(0,0,0,0.2);
@@ -344,12 +342,16 @@ button.colorbtn.offline {
     right: 0;
     visibility: hidden;
     transition: 0.1s linear all;
+    overflow: scroll;
+    user-select: none;
+}
+
+.modal-container-short {
+    margin: 10% 0 5% 0;
 }
 
 #color-overlay-modal {
     z-index: 5;
-    height: 480px;
-    max-height: 480px;
     width: 320px;
     max-width: 320px;
     background-color: white;
@@ -358,6 +360,34 @@ button.colorbtn.offline {
     top: 50%;
     border-radius: 7px;
     transform: translateX(-50%) translateY(-50%);
+    border: 1px solid gray;
+}
+
+#color-overlay-button-close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font: 30px/100% arial, sans-serif;
+    color: gray;
+    text-align: center;
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+    cursor: pointer;
+    z-index: 5;
+    transition: 0.2s ease-out all;
+}
+
+#color-overlay-button-close:after {
+    content: '×'; //utf-8 'x' symbol
+}
+
+#color-overlay-button-close:hover {
+    transform: rotateZ(90deg);
+}
+
+#color-overlay-button-close:active {
+    color: black;
 }
 
 #color-picker-canvas {
@@ -368,19 +398,54 @@ button.colorbtn.offline {
     border-top-right-radius: 7px;
 }
 
-#color-picker-contaner {
-    height: 50%;
+#color-picker-title {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: gray;
+    font-size: 18px;
+}
+
+#color-picker-container {
+    position: relative;
+    height: 240px;
     width: 100%;
     border-bottom: 1px solid gray;
 }
 
 #color-preview-div {
     background-color: rgb(0, 0, 0);
+    border-style: dashed;
+    border-width: 1px;
     position: absolute;
     width: 70%;
     height: 40px;
     border-radius: 7px;
     left: 50%;
-    top: 50%;
+    bottom: -40px;
     transform: translateY(-50%) translateX(-50%);
+
+    text-align: center;
+    font-size: 20px;
+
+    line-height: 40px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+
+    user-select: none;
+}
+
+#pattern-picker-container {
+    position: relative;
+    height: 240px;
+}
+
+#pattern-picker-title {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: gray;
+    font-size: 18px;
 }
