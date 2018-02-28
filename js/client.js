@@ -500,6 +500,11 @@ class ColorPicker {
             mouseEvent(e);
         }
 
+        this.canvas.ontouchmove = function(e) {
+            e.preventDefault();
+            mouseEvent(e);
+        }
+
         this.canvas.onmousemove = mouseEvent;
         this.canvas.onmousedown = mouseEvent;
     }
