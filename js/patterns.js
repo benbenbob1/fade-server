@@ -169,6 +169,15 @@ var patterns = {
 			}
 		},
 		requiresMultipleColors: false,
+		display: {
+			title: "Rainbow fade",
+			backgroundDivCSS: {
+				"background": {
+					backgroundColor: "rgb(255,0,0)",
+					animation: "fade-anim 10s linear infinite"
+				}
+			}
+		},
 		function: function() {
 			this.patternHue += 0.05;
 			if (this.patternHue >= 1.0) {
@@ -207,6 +216,19 @@ var patterns = {
 			}
 		},
 		requiresMultipleColors: true,
+		display: {
+			title: "Random",
+			backgroundDivCSS: {
+				"repeat": {
+					background: "url(data:image/png;base64,"+
+					"iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAATklEQVQ"+
+					"YV2O0O3X+PwMDA8MhM0NGEI0LMBKtEJsJD27YgW1R0DgEtwWrdUQrxG"+
+					"YLY8V5iDUdhghrKFOITfenmXFgW/jSF+H3DNEKsdkCAO99IAvSBrFVA"+
+					"AAAAElFTkSuQmCC) repeat",
+					backgroundPosition: "1px 0px"
+				}
+			}
+		},
 		function: function() {
 			var strips = [];
 			var stripCount = 2;
@@ -257,6 +279,41 @@ var patterns = {
 			}
 		},
 		requiresMultipleColors: true,
+		display: {
+			title: "Waves",
+			backgroundDivCSS: {
+				"circle-red": {
+					backgroundColor: "red",
+					top: "0",
+					animation: "wave-anim 4s linear infinite",
+					width: "10px",
+				    height: "32px",
+				    opacity: "0.6",
+				    webkitFilter: "blur(2px) saturate(180%)",
+				    position: "absolute"
+				},
+				"circle-green": {
+					backgroundColor: "lightgreen",
+					top: "0",
+					animation: "wave-anim 3s linear infinite",
+					width: "10px",
+				    height: "32px",
+				    opacity: "0.6",
+				    webkitFilter: "blur(2px) saturate(180%)",
+				    position: "absolute"
+				},
+				"circle-blue": {
+					backgroundColor: "blue",
+					top: "0",
+					animation: "wave-anim 5s linear infinite",
+					width: "10px",
+				    height: "32px",
+				    opacity: "0.6",
+				    webkitFilter: "blur(2px) saturate(180%)",
+				    position: "absolute"
+				}
+			}
+		},
 		function: function() {
 			var strip = []; //one strip of 60 leds
 			var leds = 128;
@@ -345,6 +402,20 @@ var patterns = {
 			}
 		},
 		requiresMultipleColors: true,
+		display: {
+			title: "Rainbow fade",
+			backgroundDivCSS: {
+				"background": {
+					background: "linear-gradient(to right, "+
+					"red 0%,"+
+					"yellow 25%,"+
+					"green 50%,"+
+					"blue 75%,"+
+					"red 100%)",
+					animation: "rainbow-fade-anim 3s linear infinite"
+				}
+			}
+		},
 		function: function() {
 			this.patternHue += 0.1;
 			if (this.patternHue > 1.0) {
@@ -357,7 +428,10 @@ var patterns = {
 				if (hue > 1.0) {
 					hue -= 1.0;
 				}
-				var col = this.hslToRgb(hue, this.options.saturation.value, this.options.brightness.value);
+				var col = this.hslToRgb(
+					hue, this.options.saturation.value, 
+					this.options.brightness.value
+				);
 				strip.push(col);
 			}
 			this.writeLEDs([strip, strip]);

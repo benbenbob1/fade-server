@@ -134,166 +134,9 @@ button.colorbtn.offline {
     box-shadow: 0px 10px 0px 0px rgba(204,50,50,0.75);
 }
 
-.button-collection {
-    display: block;
-    width: 100%;
-    top: 60px;
-    position: relative;
-}
-
-.preset-button:hover {
-    color: white;
-}
-
-.preset-button {
-    width: 30px;
-    height: 30px;
-    border: 3px solid white;
-    border-radius: 5px;
-    margin-left: 10px;
-    margin-right: 10px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    transition: 0.15s linear all;
-    vertical-align: top;
-    padding: 0;
-}
-
-.preset-button:hover {
-    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.5);
-}
-
-.preset-button:active {
-    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
-    border-color: grey;
-}
-
-.preset-button.button-selected {
-    border: 3px solid lime;
-    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
-}
-
-#pattern-rainbow-fade {
-    background: #ff0000; /* Old browsers */
-    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
-    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
-    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-}
-
-#pattern-rainbow-alternate-top {
-    height: 50%;
-    background-image: repeating-linear-gradient( 90deg, red, orange 20%, yellow 40%, green 60%, blue 80%, purple 100% );
-}
-
-#pattern-rainbow-alternate-bottom {
-    height: 50%;
-    background-image: repeating-linear-gradient( 90deg, purple, blue 20%, green 40%, yellow 60%, orange 80%, red 100% );
-}
-
-#pattern-waves {
-    overflow: hidden;
-    position: relative;
-}
-
-.pattern-waves-circle {
-    width: 10px;
-    height: 10px;
-    border-radius: 100px;
-    opacity: 0.8;
-    -webkit-filter: blur(2px) saturate(180%);
-    position: absolute;
-    z-index: 1;
-}
-
-#pattern-waves-text {
-    z-index: 2;
-    position: relative;
-    color: white;
-}
-
-#pattern-waves-circle-red {
-    background: red;
-    top: 3px;
-    left: 4px;
-    transform-origin: 100% 50%;
-    animation: neg-rotate 5s linear infinite;
-}
-
-#pattern-waves-circle-green {
-    background: lightgreen;
-    top: 5px;
-    left: 12px;
-    transform-origin: 0% 50%;
-    animation: rotate 10s linear infinite;
-}
-
-#pattern-waves-circle-blue {
-    background: blue;
-    top: 10px;
-    left: 7px;
-    transform-origin: 50% 0%;
-    animation: neg-rotate 15s linear infinite;
-}
-
-#pattern-switch {
-    background-image: repeating-linear-gradient( 90deg, white, white 50%, black 50%, black 100% );
-}
-
-#pattern-switch:hover {
-    background-image: repeating-linear-gradient( 90deg, black, black 50%, white 50%, white 100% );
-}
-
-#pattern-music-hue {
-    background: #ff0000; /* Old browsers */
-    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
-    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
-    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-}
-
-#pattern-random {
-    color: white;
-    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAATklEQVQYV2O0O3X+PwMDA8MhM0NGEI0LMBKtEJsJD27YgW1R0DgEtwWrdUQrxGYLY8V5iDUdhghrKFOITfenmXFgW/jSF+H3DNEKsdkCAO99IAvSBrFVAAAAAElFTkSuQmCC) repeat;
-}
-
-#pattern-moving-fade {
-    background-image: repeating-linear-gradient( 90deg, red, orange 20%, yellow 40%, green 60%, blue 80%, red 100% );
-    animation: hue-rotate 3s linear infinite;
-}
-
-@keyframes hue-rotate {
-    from {
-        /*-webkit-filter: hue-rotate(0deg);*/
-        background-position-x: 0px;
-    }
-    to {
-        /*-webkit-filter: hue-rotate(359deg);*/
-        background-position-x: 24px;
-    }
-}
-
-@keyframes neg-rotate {
-    to {
-        transform: rotateZ(0deg);
-    }
-    from {
-        transform: rotateZ(359deg);
-    }
-}
-
-@keyframes rotate {
-    from {
-        transform: rotateZ(0deg);
-    }
-    to {
-        transform: rotateZ(359deg);
-    }
-}
-
 #config-space {
-    margin-top: 50px;
     display: block;
     width: 100%;
-    top: 60px;
     position: relative;
 }
 
@@ -361,6 +204,7 @@ button.colorbtn.offline {
     border-radius: 7px;
     transform: translateX(-50%) translateY(-50%);
     border: 1px solid gray;
+    box-shadow: 0 0 14px 5px rgba(0,0,0,0.2);
 }
 
 #color-overlay-button-close {
@@ -438,7 +282,6 @@ button.colorbtn.offline {
 
 #pattern-picker-container {
     position: relative;
-    height: 240px;
 }
 
 #pattern-picker-title {
@@ -448,4 +291,98 @@ button.colorbtn.offline {
     transform: translateX(-50%);
     color: gray;
     font-size: 18px;
+}
+
+#preset-container {
+    padding-top: 55px;
+    padding-bottom: 30px;
+    display: inline-flex;
+}
+
+.button-collection {
+    display: block;
+    width: 100%;
+    top: 60px;
+    position: relative;
+}
+
+.preset-button:hover {
+    color: white;
+}
+
+.preset-button {
+    width: 30px;
+    height: 30px;
+    border: 3px solid white;
+    border-radius: 5px;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    transition: 0.1s linear all;
+    vertical-align: top;
+    padding: 0;
+    box-shadow: 0px 0px 4px 1px rgba(0,0,0,0.5);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+}
+
+.preset-button:hover {
+    box-shadow: 
+        inset 0px 0px 30px 0px rgba(0,0,0,0.5),
+        0px 0px 4px 1px rgba(0,0,0,0.5);
+    border-color: lightgray;
+}
+
+.preset-button:active {
+    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+    border-color: grey;
+}
+
+.preset-button.button-selected {
+    border: 3px solid lime;
+    box-shadow: inset 0px 0px 30px 0px rgba(0,0,0,0.75);
+}
+
+#pattern-switch {
+    background-image: repeating-linear-gradient( 90deg, white, white 50%, black 50%, black 100% );
+}
+
+#pattern-switch:hover {
+    background-image: repeating-linear-gradient( 90deg, black, black 50%, white 50%, white 100% );
+}
+
+#pattern-music-hue {
+    background: #ff0000; /* Old browsers */
+    background: -moz-linear-gradient(left, #ff0000 0%, #ff9f05 25%, #f2ff05 50%, #15ff05 75%, #0000ff 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, #ff0000 0%,#ff9f05 25%,#f2ff05 50%,#15ff05 75%,#0000ff 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
+@keyframes rainbow-fade-anim {
+    from {
+        background-position-x: 0px;
+    }
+    to {
+        background-position-x: -30px;
+    }
+}
+
+@keyframes wave-anim {
+    from {
+        right: -10px;
+    }
+    to {
+        right: 42px;
+    }
+}
+
+@keyframes fade-anim {
+    from {
+        filter: hue-rotate(0deg);
+    }
+    to {
+        filter: hue-rotate(359deg);
+    }
 }

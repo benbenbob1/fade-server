@@ -259,9 +259,8 @@ function connectSocket() {
             } else if ('id' in data) {
                 startPattern(data.id);
             } else if ('config' in data) {
-                if (pattern 
-                    && pattern.options
-                    && pattern.options[data.config]) {
+                if (pattern && pattern.options &&
+                    pattern.options[data.config]) {
                     var input = pattern.options[data.config].config.input;
                     if (input && typeof input.update !== undefined) {
                         pattern.options[data.config].displayValue = data.value;
@@ -293,8 +292,6 @@ function broadcastColorHSV(socket, stripIdx=-1) {
             emit(s);
         }
     }
-    
-    
 }
 
 function broadcastColor(socket) {

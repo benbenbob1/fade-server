@@ -40,12 +40,16 @@ $(document).ready(function() {
 socket.on('color', function(data) {
     //console.log('Client rec: '+JSON.stringify(data));
     if ('strip' in data) {
-        deselectPreset();
+        if (colorOverlay != null) {
+            colorOverlay.deselectPreset();
+        }
         setLocalColor(data.strip, [data.h, data.s, data.v]);
     } else if ('id' in data) {
-        deselectPreset();
         if (data.id != 'stop') {
-            choosePreset(data.id, data.config);
+            if (colorOverlay != null) {
+                colorOverlay.deselectPreset();
+                colorOverlay.choosePreset(data.id, data.config);
+            }
         } else {
             removeConfig();
             console.log("Got stop pattern message");
@@ -98,16 +102,6 @@ function setupStripButtons(numButtons, stripNames=[]) {
             stripButtonPressed(event.target.data_strip, event.target.innerText);
         }
         container.appendChild(button);
-
-        /*
-        var colorPicker = new jscolor(button, {
-            width: ($(button).innerWidth()*0.8),
-            position: "center",
-            valueElement: null,
-            styleElement: null
-        });
-        colorPicker.onFineChange = colorUpdated.bind(null, colorPicker, i);
-        */
     }
     buttons = $(".colorbtn");
 }
@@ -165,64 +159,6 @@ function post(data) {
     }
 }
 
-/*
-function lockIconClicked() {
-    if (!buttons) {
-        return;
-    }
-    var locked = 'locked.png',
-        unlocked = 'unlocked.png';
-
-    colorsLocked = !colorsLocked;
-    $('#lock-strips').attr('src', '/assets/'+(colorsLocked?locked:unlocked));
-    var notFirst = $(".strip-button:gt(0)");
-    notFirst.prop('disabled', colorsLocked);
-    var z = 9;
-    for (var i=0; i<notFirst.length; i++) {
-        notFirst[i].style.zIndex = z--;
-    }
-    
-    localStorage.setItem('locked', colorsLocked);
-
-    var cls = "button-locked";
-    if (colorsLocked) {
-        buttons.addClass(cls);
-    } else {
-        buttons.removeClass(cls);
-    }
-}
-*/
-
-function deselectPreset() {
-    $('.button-selected').blur();
-    return $('.button-selected').removeClass('button-selected').attr('id');
-}
-
-//Called by external preset updating
-function choosePreset(id, options) {
-    $('#pattern-'+id).addClass('button-selected');
-    var config = options || patterns[id].config;
-    if (config) {
-        setupConfig(config);
-    }
-}
-
-function chosePreset(id) {
-    console.log("Preset: "+ id);
-    if (!reachable) {
-        return;
-    }
-    var last = deselectPreset();
-    if (id !== last) {
-        var submission = id.substring("pattern-".length);
-        //setupConfig(patterns[submission].options || null);
-        post({id: submission});
-    } else {
-        removeConfig();
-        post({id: "stop"});
-    }
-}
-
 function componentToHex(c) {
     var hex = c.toString(16);
     return hex.length == 1 ? '0' + hex : hex;
@@ -239,31 +175,8 @@ function getTextColorForBackground(r, g, b) {
     return bOrW ? '#FFF' : '#000';
 }
 
-/*
-function colorUpdated(picker, buttonNum) {
-    console.log("Picker", picker);
-    console.log("BN", buttonNum);
-
-    var color = {};
-    color.r = Math.round(picker.rgb[0]);
-    color.g = Math.round(picker.rgb[1]);
-    color.b = Math.round(picker.rgb[2]);
-    color.strip = [];
-
-    if (colorsLocked) {
-        color.strip = arrayOfNumbersUpTo(
-            config.numStrips + config.numOneColorStrips);
-        post(color);
-    } else {
-        color.strip = buttonNum
-        post(color);
-    }
-}
-*/
-
 // If strip num > number of strips or < 0, sets all strips
 function colorUpdated(stripNum, newHSV) {
-
     var color = {};
     color.h = newHSV[0];
     color.s = newHSV[1];
@@ -288,117 +201,6 @@ function arrayOfNumbersUpTo(max) {
         output.push(i);
     }
     return output;
-}
-
-/*
-
-Config Space
-
-*/
-
-function rangeAdjusted(item, toUpdate) {
-    if (toUpdate && toUpdate.length>0) {
-        var elem = document.getElementById(toUpdate);
-        elem.innerText = item.value + "%";
-    }
-}
-
-function rangeSet(element) {
-    post({
-        config: element.id,
-        value: parseInt(element.value)
-    });
-}
-
-function checkboxSet(element) {
-    post({
-        config: element.id,
-        value: element.checked
-    });
-}
-
-function removeConfig() {
-    var container = document.getElementById("config-space");
-    if (!$(container).is(":visible")) {
-        return;
-    }
-    $(container).empty();
-}
-
-function setupConfig(options) {
-    var container = document.getElementById("config-space");
-    if (!options) {
-        removeConfig();
-        return;
-    } else if ($(container).is(":visible")) {
-        $(container).empty();
-    }
-    var docFrag = document.createDocumentFragment();
-    var option, config;
-    for (var index in options) {
-        option = options[index];
-        config = option.config;
-        var rowElem = document.createElement("div");
-        rowElem.className = "config-item-row";
-        var lLabel = document.createElement("span");
-        var rLabel = document.createElement("span");
-        lLabel.className = "config-item item-left";
-        rLabel.className = "config-item item-right";
-        var elem = document.createElement("input");
-        elem.type = config.input.type;
-        if (config.label.left) {
-            lLabel.id = config.label.left.id;
-            lLabel.innerText = config.label.left.text;
-        }
-        if (config.label.right) {
-            rLabel.id = config.label.right.id;
-            if (config.input.valueType && 
-                config.input.valueType === "percent" && 
-                option.displayValue != null) {
-                rLabel.innerText = option.displayValue + "%";
-            } else {
-                rLabel.innerText = config.label.right.text;
-            }
-        }
-
-        elem.id = index;
-        elem.toChange = (config.label.right && config.label.right.id) || null;
-        
-        if (config.input.type == "range") {
-            if (elem.toChange) {
-                elem.addEventListener("input", function(event) {
-                    rangeAdjusted(event.target, event.target.toChange);
-                });
-            }
-
-            elem.addEventListener("change", function(event) {
-                rangeSet(event.target);
-            });
-
-            if (config.input.range != null) {
-                elem.setAttribute("min", config.input.range.min);
-                elem.setAttribute("max", config.input.range.max);
-            }
-
-            if (option.displayValue != null) {
-                $(elem).val(option.displayValue);
-            }
-
-        } else if (config.input.type == "checkbox") {
-            elem.addEventListener("change", function(event) {
-                checkboxSet(event.target);
-            });
-            if (option.displayValue != null) {
-                elem.checked = option.displayValue;
-            }
-        }
-        
-        rowElem.appendChild(lLabel);
-        rowElem.appendChild(rLabel);
-        rowElem.appendChild(elem);
-        docFrag.appendChild(rowElem);
-    }
-    container.appendChild(docFrag);
 }
 
 //startHSV is [h, s, v]
@@ -437,6 +239,25 @@ function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
         );
         colorOverlay.curStrip = stripId;
         colorOverlay.setPreviewName(stripName);
+
+        var availablePatterns = {};
+        var oneColorStrip = 
+            stripId >= config.numStrips && 
+            stripId < config.numStrips + config.numOneColorStrips;
+
+        for (var pattern in patterns) {
+            var curPattern = patterns[pattern];
+            if (curPattern.requiresMultipleColors) {
+                if (!oneColorStrip) {
+                    availablePatterns[pattern] = curPattern;
+                }
+            } else {
+                availablePatterns[pattern] = curPattern;
+            }
+        }
+
+        colorOverlay.setAvailablePatterns(availablePatterns);
+
     } else {
         colorOverlay = null;
     }
@@ -604,9 +425,9 @@ class ColorPicker {
             0, pageMargin,
             0, pageMargin + brightnessBarHeight
         );
-        gradient.addColorStop(0, "white");
+        gradient.addColorStop(0.1, "white");
         gradient.addColorStop(0.5, rgbStringFromColorArray(rgbFullSat));
-        gradient.addColorStop(1, "black");
+        gradient.addColorStop(0.9, "black");
         ctx.beginPath();
         ctx.rect(
             brightnessBarXMin, pageMargin,
@@ -735,6 +556,223 @@ class ColorPicker {
         if (this.previewElem) {
             this.previewElem.innerText = newName;
         }
+    }
+
+    /*
+    dictionaryOfPatternDicts:
+    {
+        "pattern1": {
+            requiresMultipleColors: true,
+            display: {
+                title: "The best pattern",
+                backgroundDivCSS: {
+                    "background": {
+                        backgroundColor: "red"
+                    },
+                    "foreground": {
+                        content: "x",
+                        color: "white"
+                    }
+                }
+            }
+        }
+    }
+    */
+
+    addPatternButton(patternName, dict, containerElem) {
+        if (!containerElem) { return; }
+        var displayDict = dict.display || {};
+        var patternButton = document.createElement("div");
+        patternButton.id = "pattern-"+patternName;
+        patternButton.classList.add("preset-button");
+        if ("title" in displayDict) {
+            patternButton.title = displayDict.title;
+        }
+        if ("backgroundDivCSS" in displayDict) {
+            var innerElems = displayDict.backgroundDivCSS;
+            for (var div in innerElems) {
+                var innerElem = document.createElement("div");
+                innerElem.id = patternButton.id + "-inner-" + div;
+                innerElem.style.height = "100%";
+                innerElem.style.width = "100%";
+                innerElem.style.borderRadius = "2px";
+                for (var cssItem in innerElems[div]) {
+                    innerElem.style[cssItem] = innerElems[div][cssItem];
+                }
+                patternButton.appendChild(innerElem);
+            }
+        }
+        var selectedClass = "button-selected";
+        patternButton.onclick = function(e) {
+            if (patternButton.classList.contains(selectedClass)) {
+                patternButton.classList.remove(selectedClass);
+            } else {
+                patternButton.classList.add(selectedClass);
+            }  
+        };
+        containerElem.appendChild(patternButton);
+    }
+
+    setAvailablePatterns(dictionaryOfPatternDicts) {
+        var patternContainer = document.getElementById(
+            "preset-container"
+        );
+
+        if (!patternContainer) { return; }
+
+        while (patternContainer.firstChild) {
+            patternContainer.removeChild(patternContainer.firstChild);
+        }
+
+        var me = this;
+        for (var pattern in dictionaryOfPatternDicts) {
+            me.addPatternButton(
+                pattern, dictionaryOfPatternDicts[pattern], patternContainer
+            );
+        }
+
+        this.resizeModal();
+    }
+
+    deselectPreset() {
+        $('.button-selected').blur();
+        return $('.button-selected').removeClass('button-selected').attr('id');
+    }
+
+    // Called by external preset updating (from server)
+    choosePreset(id, options) {
+        $('#pattern-'+id).addClass('button-selected');
+        var config = options || patterns[id].config;
+        if (config) {
+            setupConfig(config);
+        }
+    }
+
+    chosePreset(id) {
+        console.log("Preset: "+ id);
+        if (!reachable) {
+            return;
+        }
+        var last = deselectPreset();
+        if (id !== last) {
+            var submission = id.substring("pattern-".length);
+            //setupConfig(patterns[submission].options || null);
+            post({id: submission});
+        } else {
+            removeConfig();
+            post({id: "stop"});
+        }
+    }
+
+    /*
+
+    Pattern config Space
+
+    */
+
+    rangeAdjusted(item, toUpdate) {
+        if (toUpdate && toUpdate.length>0) {
+            var elem = document.getElementById(toUpdate);
+            elem.innerText = item.value + "%";
+        }
+    }
+
+    rangeSet(element) {
+        post({
+            config: element.id,
+            value: parseInt(element.value)
+        });
+    }
+
+    checkboxSet(element) {
+        post({
+            config: element.id,
+            value: element.checked
+        });
+    }
+
+    removeConfig() {
+        var container = document.getElementById("config-space");
+        if (!$(container).is(":visible")) {
+            return;
+        }
+        $(container).empty();
+    }
+
+    setupConfig(options) {
+        var container = document.getElementById("config-space");
+        if (!options) {
+            removeConfig();
+            return;
+        } else if ($(container).is(":visible")) {
+            $(container).empty();
+        }
+        var docFrag = document.createDocumentFragment();
+        var option, config;
+        for (var index in options) {
+            option = options[index];
+            config = option.config;
+            var rowElem = document.createElement("div");
+            rowElem.className = "config-item-row";
+            var lLabel = document.createElement("span");
+            var rLabel = document.createElement("span");
+            lLabel.className = "config-item item-left";
+            rLabel.className = "config-item item-right";
+            var elem = document.createElement("input");
+            elem.type = config.input.type;
+            if (config.label.left) {
+                lLabel.id = config.label.left.id;
+                lLabel.innerText = config.label.left.text;
+            }
+            if (config.label.right) {
+                rLabel.id = config.label.right.id;
+                if (config.input.valueType && 
+                    config.input.valueType === "percent" && 
+                    option.displayValue != null) {
+                    rLabel.innerText = option.displayValue + "%";
+                } else {
+                    rLabel.innerText = config.label.right.text;
+                }
+            }
+
+            elem.id = index;
+            elem.toChange = (config.label.right && config.label.right.id) || null;
+            
+            if (config.input.type == "range") {
+                if (elem.toChange) {
+                    elem.addEventListener("input", function(event) {
+                        rangeAdjusted(event.target, event.target.toChange);
+                    });
+                }
+
+                elem.addEventListener("change", function(event) {
+                    rangeSet(event.target);
+                });
+
+                if (config.input.range != null) {
+                    elem.setAttribute("min", config.input.range.min);
+                    elem.setAttribute("max", config.input.range.max);
+                }
+
+                if (option.displayValue != null) {
+                    $(elem).val(option.displayValue);
+                }
+
+            } else if (config.input.type == "checkbox") {
+                elem.addEventListener("change", function(event) {
+                    checkboxSet(event.target);
+                });
+                if (option.displayValue != null) {
+                    elem.checked = option.displayValue;
+                }
+            }
+            
+            rowElem.appendChild(lLabel);
+            rowElem.appendChild(rLabel);
+            rowElem.appendChild(elem);
+            docFrag.appendChild(rowElem);
+        }
+        container.appendChild(docFrag);
     }
 }
 
