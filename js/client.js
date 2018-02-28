@@ -362,8 +362,8 @@ class ColorPicker {
 
         context.lineWidth = 1;
 
-        var radIncr = Math.PI / 32.;
-        var toRad = PI2-radIncr; //second to last
+        var radIncr = Math.PI / 40.;
+        var toRad = PI2; //second to last
         for (var rad=0.0; rad<toRad; rad += radIncr) {
             var hue = ( rad / PI2 ) * 1.0;
             var rgb = hslToRgb(hue, 1.0, 0.5);
@@ -406,7 +406,7 @@ class ColorPicker {
             (width - (pageMargin * 2.) - brightnessBarWidth) / 2.,
             (height - (pageMargin * 2.)) / 2.
         );
-        var circleCenterX = pageMargin + circleRadius;
+        var circleCenterX = pageMargin + circleRadius; //relative to canvas(0,0)
         var circleCenterY = height / 2.;
 
         var clearMinX = circleCenterX + circleRadius + 2;
@@ -461,48 +461,70 @@ class ColorPicker {
 
         var me = this; // me = current object
 
+        var didTouchCanvas = function(touchX, touchY) {
+            if (touchX >= pageMargin &&
+                touchX <= pageMargin + (circleRadius * 2.) &&
+                touchY >= pageMargin &&
+                touchY <= pageMargin + (circleRadius * 2.)
+                ) {
+
+                me.colorWheelClick(
+                    touchX, touchY,
+                    circleCenterX, circleCenterY, circleRadius
+                );
+            } else if (
+                touchX >= width - pageMargin - brightnessBarWidth &&
+                touchX <= width - pageMargin &&
+                touchY >= pageMargin &&
+                touchY <= height - pageMargin
+                ) {
+                me.brightnessBarClick(
+                    touchX, touchY, 
+                    pageMargin, pageMargin + brightnessBarHeight
+                );
+            }
+        }
+
         var mouseEvent = function(e) {
             var clickX = e.offsetX;
             var clickY = e.offsetY;
 
             if (e.buttons == 1) {
-                if (clickX >= pageMargin &&
-                    clickX <= pageMargin + (circleRadius * 2.) &&
-                    clickY >= pageMargin &&
-                    clickY <= pageMargin + (circleRadius * 2.)
-                    ) {
-
-                    me.colorWheelClick(
-                        clickX, clickY,
-                        circleCenterX, circleCenterY, circleRadius
-                    );
-                } else if (
-                    clickX >= width - pageMargin - brightnessBarWidth &&
-                    clickX <= width - pageMargin &&
-                    clickY >= pageMargin &&
-                    clickY <= height - pageMargin
-                    ) {
-                    me.brightnessBarClick(
-                        clickX, clickY, 
-                        pageMargin, pageMargin + brightnessBarHeight
-                    );
-                }
+                didTouchCanvas(clickX, clickY);
             }
+        }
+
+        var touchEvent = function(e) {
+            if (e.touches.length <= 0) { return; }
+            var firstTouch = e.touches[0];
+
+            var canvasOffsetY = 
+                me.canvas.parentElement.parentElement.parentElement.offsetTop -
+                me.canvas.parentElement.parentElement.offsetHeight / 2.;
+            var canvasOffsetX = 
+                me.canvas.parentElement.parentElement.parentElement.offsetLeft -
+                me.canvas.parentElement.parentElement.offsetWidth / 2.;
+
+            var canvasY = firstTouch.pageY - canvasOffsetY;
+            var canvasX = firstTouch.pageX - canvasOffsetX;
+
+            //console.log("TE: "+canvasX+", "+canvasY);
+            didTouchCanvas(canvasX, canvasY);
         }
 
         this.canvas.ontouchstart = function(e) {
             e.preventDefault();
-            mouseEvent(e);
+            touchEvent(e);
         }
 
         this.canvas.ontouchend = function(e) {
             e.preventDefault();
-            mouseEvent(e);
+            touchEvent(e);
         }
 
         this.canvas.ontouchmove = function(e) {
             e.preventDefault();
-            mouseEvent(e);
+            touchEvent(e);
         }
 
         this.canvas.onmousemove = mouseEvent;
