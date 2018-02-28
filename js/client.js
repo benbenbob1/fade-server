@@ -208,10 +208,18 @@ function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
     var overlayContainer = document.getElementById("color-overlay-container");
     var closeButton = document.getElementById("color-overlay-button-close");
 
+    var modalElemId = "color-overlay-modal";
+    var modalElem = document.getElementById(modalElemId);
+    var modalOpenClass = "modal-open";
+
     if (visible) {
         overlayContainer.style.visibility = "visible";
         overlayContainer.style.opacity = "1.0";
+
+        modalElem.classList.add(modalOpenClass);
     } else {
+        modalElem.classList.remove(modalOpenClass);
+
         overlayContainer.style.opacity = "0.0";
         setTimeout(function(){
             overlayContainer.style.visibility = "hidden";
@@ -263,20 +271,16 @@ function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
     }
 }
 
-function rgbStringFromColorArray(colorArr=[0,0,0]) {
-    if (colorArr.length > 3) {
-        return "rgba(" +
-            colorArr[0]+","+
-            colorArr[1]+","+
-            colorArr[2]+","+
-            colorArr[3]+
-            ")";
-    }
+function rgbStringFromColorArray(colorArr=[0,0,0], alpha=1.0) {
+    if (colorArr.length < 3) { return "rgba(0,0,0,0)"; }
+    var alphaOut = (colorArr.length > 3 ? colorArr[3] : alpha);
 
     return "rgba(" +
         colorArr[0]+","+
         colorArr[1]+","+
-        colorArr[2]+",1.0)";
+        colorArr[2]+","+
+        alphaOut+
+    ")";
 }
 
 class ColorPicker {
@@ -304,6 +308,8 @@ class ColorPicker {
         }
 
         this.resizeModal();
+
+        this.modal.classList.add("modal-open");
     }
 
     resizeModal() {
@@ -357,7 +363,8 @@ class ColorPicker {
         context.lineWidth = 1;
 
         var radIncr = Math.PI / 32.;
-        for (var rad=0.0; rad<PI2; rad += radIncr) {
+        var toRad = PI2-radIncr; //second to last
+        for (var rad=0.0; rad<toRad; rad += radIncr) {
             var hue = ( rad / PI2 ) * 1.0;
             var rgb = hslToRgb(hue, 1.0, 0.5);
 
@@ -481,6 +488,16 @@ class ColorPicker {
                     );
                 }
             }
+        }
+
+        this.canvas.ontouchstart = function(e) {
+            e.preventDefault();
+            mouseEvent(e);
+        }
+
+        this.canvas.ontouchend = function(e) {
+            e.preventDefault();
+            mouseEvent(e);
         }
 
         this.canvas.onmousemove = mouseEvent;

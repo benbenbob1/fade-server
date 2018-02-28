@@ -195,16 +195,31 @@ button.colorbtn.offline {
 
 #color-overlay-modal {
     z-index: 5;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translateX(-50%) translateY(-50%);
+}
+
+#color-overlay-content {
     width: 320px;
     max-width: 320px;
     background-color: white;
-    position: absolute;
-    left: 50%;
-    top: 50%;
     border-radius: 7px;
-    transform: translateX(-50%) translateY(-50%);
     border: 1px solid gray;
     box-shadow: 0 0 14px 5px rgba(0,0,0,0.2);
+}
+
+#color-overlay-content {
+    transform: scale(0.8);
+    transition: 0.2s ease-out all;
+}
+
+.modal-open #color-overlay-content {
+    transform: scale(1);
+}
+
+#color-overlay-modal.modal-open {
 }
 
 #color-overlay-button-close {
