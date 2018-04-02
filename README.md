@@ -24,7 +24,7 @@ There is a file located at `js/config.json`. There are a few options you can set
 
 `https`: Use HTTPS for the web server? This requires a valid certificate.
 
-`port`: Port to use for the web server. Defaults to 80.
+`port`: Port to use for the web server. Should be 80. If HTTPS is *true*, the port will automatically be set to *443*.
 
 `stripNames`: Array of strings which correspond to the strip names. Strips are displayed first by multi-colored, then single-colored.
 
@@ -37,10 +37,10 @@ Most of the patterns are written for the multi-colored strips, and these will no
 Run the command 'npm install' from inside the fade-server folder. It is recommended that your config file be changed to suit your needs, such as the name of your strips (in order).
 
 # Running
-Run the command 'node app.js' from inside the fade-server folder - this command may have to be run as root. You can also add a port number at the end of the command. *This will overwrite the port provided in `config.js`*  This will run automatically if the next instruction is followed.
+Run the command 'node app.js' from inside the fade-server folder - this command may have to be run as root. You can also add a port number at the end of the command. *This will overwrite the port provided in `config.js`*  You can get the app to run automatically if the following instruction set is followed.
 
 # Running on Startup
-The following must be added to /etc/rc.local to get fade-server (as well as fcserver - if using the fadecandy board and a multi-colored strip) to run on boot. Make sure to copy `fcserver` from fadecandy's repo to `/usr/local/bin/` so it can be run as root without needing to access the user folder, which may be protected.
+The following must be added to `/etc/rc.local` (or wherever startup scripts are stored on your device) to get fade-server (as well as fcserver - required if using the Fadecandy board and a multi-colored strip) to run on boot. Make sure to copy `fcserver` from Fadecandy's repo to a root position such as `/usr/local/bin/` so it can be run as root without the system needing to access the user folder, which may be protected.
 
 
 `/usr/local/bin/fcserver /usr/local/bin/fcserver.json >/var/log/fcserver.log 2>&1 &`
