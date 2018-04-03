@@ -1,3 +1,8 @@
+/**
+ * Ben Brown : benbrown52@gmail.com
+ * https://benbrown.science
+ */
+
 var express           = require('express'),
     tls               = require('tls'),
     fs                = require('fs'),
@@ -45,17 +50,62 @@ var ledPins = {
     blue: 24
 };
 
+const var OFF_COLOR_HSV = [0, 1, 0];
+
 /*
 stripStatus = [
-    {
-        h: 0-1 //percent hue
-        s: 0-1 //percent saturation
-        v: 0-1 //percent value (brightness or lightness)
-    }
+    { //Strip 0
+        "color": [
+            h: 0-1 //percent hue
+            s: 0-1 //percent saturation
+            v: 0-1 //percent value (brightness or lightness)
+        ]
+        // OR (should not be both)
+        "pattern": //PATTERN OBJECT
+    }, ...
 ]
 */
 
-var stripStatus = Array(totalStrips).fill([0, 1, .5]);
+/*
+    Socket messages (server<->client)
+
+    out (to the client):
+        color: {
+            'strip': 0,
+            'color': [0, 1, 0.5]
+        }
+        // OR
+        color: {
+            'strip': 0,
+            'pattern': 'waves'
+        }
+
+
+        config: {
+            'pattern': 'waves',
+            CONFIG_ID: NEW_VALUE
+        }
+
+    in (to the server):
+        newcolor: {
+            'strip': 1,
+            'pattern': 'waves'
+        }
+        // OR
+        newcolor: {
+            'strip': 1,
+            'color': [0.5, 1, 0.5]
+        }
+
+
+        newconfig: {
+            'pattern': 'waves',
+            CONFIG_ID: NEW_VALUE
+        }
+
+*/
+
+var stripStatus = Array(totalStrips).fill({"color": OFF_COLOR_HSV});
 
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
@@ -75,10 +125,22 @@ app.get('/', function(req, res) {
 });
 
 app.post('/api/color', function(req, res) {
-    var r = req.body['red']   || 0;
-    var g = req.body['green'] || 0;
-    var b = req.body['blue']  || 0;
+    var r = req.body['r'] || 0;
+    var g = req.body['g'] || 0;
+    var b = req.body['b'] || 0;
+
+    var h = req.body['h'] || 0;
+    var s = req.body['s'] || 0;
+    var v = req.body['v'] || 0;
+
     endPattern();
+
+    if (r == g == b == 0) {
+        //TODO: TEST THIS
+        [r,g,b] = hslToRgb(h, s, v);
+    }
+
+    log("Got API call. Setting to rgb ("+r+", "+g+", "+b+").");
 
     _writeColor(r, g, b, arrayOfNumbersUpTo(totalStrips));
     broadcastColor();
@@ -176,8 +238,6 @@ function moduleAvailable(name) {
 
 var clientSocket, serverSocket;
 var tryNum, socketTimeout = null, maxTries = 7;
-var patternInterval = null, patternHue = 0;
-var pattern = null;
 var chosenColors = [];
 
 function log(text) {
@@ -239,26 +299,30 @@ function connectSocket() {
         socketReady = true;
         log("Socket connected "+connAddr);
         socket.join('color');
-        if (pattern != null) {
-            socket.emit('color', {
-                id: pattern.id,
-                config: pattern.options
-            });
-        } else {
-            //send all colors to new socket connection
-            broadcastColorHSV(socket); 
-        }
 
+        broadcastToStrips(stripStatus)
+        
         socket.on('newcolor', function(data) {
-            if ('strip' in data) {
+            if (!('strip' in data)) {
+                return;
+            }
+            var strip = data.strip || 0;
+
+            if ('color' in data) {
                 if (pattern != null) {
                     endPattern();
                 }
-                _writeColorHSV(data.h, data.s, data.v, data.strip);
-                broadcastColorHSV(false, data.strip);
-            } else if ('id' in data) {
-                startPattern(data.id);
+                _writeColorHSV(
+                    data.color[0],
+                    data.color[1],
+                    data.color[2],
+                    strip
+                );
+                broadcastColorHSV(false, strip);
+            } else if ('pattern' in data) {
+                startPattern(data.pattern, strip);
             } else if ('config' in data) {
+                //TODO:FIXCONFIG
                 if (pattern && pattern.options &&
                     pattern.options[data.config]) {
                     var input = pattern.options[data.config].config.input;
@@ -272,15 +336,37 @@ function connectSocket() {
     });
 }
 
+//Broadcast all info about all strips to one socket (or every socket)
+function broadcastToStrips(stripStatusArr, socketOrNull=null) {
+    var out = socket || serverSocket;
+
+    var stripDict;
+    for (var strip = 0; strip < stripStatusArr.length; strip++) {
+        stripDict = stripStatusArr[strip];
+        if ('pattern' in stripDict) {
+            out.emit('color', {
+                strip: strip,
+                pattern: stripDict.pattern
+            });
+        } else {
+            out.emit('color', {
+                strip: strip,
+                color: stripDict.color
+            });
+        }
+    }
+}
+
 //Socket or false, stripIdx
 function broadcastColorHSV(socket, stripIdx=-1) {
     var out = socket || serverSocket;
 
     var emit = function(stripIdxToSend) {
+        var stripColor = stripStatus[stripIdxToSend].color;
         out.emit('color', {
-            h: stripStatus[stripIdxToSend][0],
-            s: stripStatus[stripIdxToSend][1],
-            v: stripStatus[stripIdxToSend][2],
+            h: stripColor[0],
+            s: stripColor[1],
+            v: stripColor[2],
             strip: stripIdxToSend
         });
     }
@@ -342,6 +428,17 @@ function getColors() {
     return colorArr;
 }
 
+//Returns true if any patterns are currently active
+function showingPatterns() {
+    for (var strip=0; strip<stripStatus.length; strip++) {
+        if ('pattern' in stripStatus[strip]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 //{r: 0-255, g: 0-255, b: 0-255} or null
 /**
  * Converts a color name into discrete r, g, b values using color-namer
@@ -392,13 +489,13 @@ function getColorFromCommonName(colorName, type) {
  * @param   Number  l       The lightness
  * @return  Array           The RGB representation [r,g,b]
  */
-function hslToRgb(h, s, l){
+function hslToRgb(h, s, l) {
     var r, g, b;
 
-    if(s == 0){
+    if(s == 0) {
         r = g = b = l; // achromatic
-    }else{
-        var hue2rgb = function hue2rgb(p, q, t){
+    } else {
+        var hue2rgb = function hue2rgb(p, q, t) {
             if(t < 0) t += 1;
             if(t > 1) t -= 1;
             if(t < 1/6) return p + (q - p) * 6 * t;
@@ -429,14 +526,14 @@ function hslToRgb(h, s, l){
  * @param   {number}  b       The blue color value
  * @return  {Array}           The HSL representation
  */
-function rgbToHsl(r, g, b){
+function rgbToHsl(r, g, b) {
     r /= 255, g /= 255, b /= 255;
     var max = Math.max(r, g, b), min = Math.min(r, g, b);
     var h, s, l = (max + min) / 2;
 
-    if(max == min){
+    if(max == min) {
         h = s = 0; // achromatic
-    }else{
+    } else {
         var d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         switch(max){
@@ -451,18 +548,19 @@ function rgbToHsl(r, g, b){
 }
 
 //Starts a pattern, or stops it if given an id of "stop"
-function startPattern(id) {
+function startPattern(id, stripIdx=0) {
     if (id == 'stop') {
-        endPattern();
+        endPattern(false, stripIdx);
         return;
-    } else if (pattern !== null || patternInterval !== null) {
-        endPattern();
+    } else if ("pattern" in stripStatus[stripIdx]) {
+        endPattern(false, stripIdx);
     }
 
     log("Starting: "+id);
 
-    pattern = patterns[id];
-    pattern.id = id;
+    var pattern = patterns[id];
+    delete stripStatus[stripIdx].color;
+    stripStatus[stripIdx].pattern = pattern;
     var options = pattern.options || {};
     if (pattern != null && options.interval) {
         if (options.interval.defaultValue > 0) {
@@ -484,51 +582,72 @@ function startPattern(id) {
             }
             me = {
                 getColors: getColors,
-                patternHue: patternHue,
                 writeColor: writeColors,
+                writeColorHSV: _writeColorHSV,
                 writeLEDs: writeLEDs,
                 hslToRgb: hslToRgb,
                 options: options,
-                variables: {}
+                variables: {},
+                stipIdx: stripIdx
             };
             var justStarted = true;
             callPattern = function() {
-                //log("Should break out? "+patternInterval+", "+justStarted);
-                if (!patternInterval && !justStarted) {
+                if (!pattern.interval && !justStarted) {
                     //breaking out is hard to do...
                     return;
                 }
                 justStarted = false;
                 pattern.function.call(me);
-                patternInterval = setTimeout(callPattern, 
+                pattern.interval = setTimeout(callPattern, 
                     options.interval.value);
             }
             patternStart();
             callPattern();
         } else if (pattern.options.interval.defaultValue < 0) {
-            patternInterval = setTimeout(pattern.function, 
+            pattern.interval = setTimeout(pattern.function, 
                 -options.interval.value);
         } else if (pattern.options.interval.defaultValue === 0) {
-            patternInterval = pattern.function();
+            pattern.interval = pattern.function();
         }
     }
-    serverSocket.emit('color', {id: id, config: options});
+    broadcastToStrips(serverSocket);
 }
 
-function _stopPattenTimersOnly() {
-    if (patternInterval != null) {
-        log("Stopping pattern timer "+patternInterval);
-        clearTimeout(patternInterval);
+//TODO: FIXME
+function endPattern(dontEmit, stripIdx) {
+    log("Stopping pattern");
+    var thePattern = null;
+    if ("pattern" in stripStatus[stripIdx]) {
+        thePattern = stripStatus[stripIdx].pattern;
+    } else {
+        // Not running any pattern on this strip
+        console.log("Not running any pattern on this strip");
+        return;
     }
 
-    patternInterval = null;
-}
 
-function endPattern(dontEmit) {
-    log("Stopping pattern");
-    _stopPattenTimersOnly();
-    pattern = null;
-    serverSocket.emit('color', {id: 'stop'});
+    var patternOnlyOnThisStrip = true;
+    var patternUsage = 0;
+    for (var s=0; s<stripStatus; s++) {
+        if (s != stripIdx && "pattern" in stripStatus[s]) {
+            patternOnlyOnThisStrip = false;
+        }
+    }
+
+
+    if (patternOnlyOnThisStrip) {
+        if (pattern.interval != null) {
+            log("Stopping pattern timer "+patternInterval);
+            clearTimeout(patternInterval);
+        }
+        pattern = null;
+    }
+
+    delete stripStatus[stripIdx].pattern;
+    stripStatus[stripIdx].color = OFF_COLOR_HSV;
+    if (!dontEmit) {
+        broadcastPattern(serverSocket, stripIdx, 'stop');
+    }
 }
 
 // [[r,g,b], [r,g,b]]
@@ -621,23 +740,23 @@ function writeOneColorStrip(rgb) {
 function _writeColorHSV(h, s, v, strip) {
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
-            stripStatus[strip[i]] = [h, s, v];
+            stripStatus[strip[i]] = {"color": [h, s, v]};
         }
     } else {
-        stripStatus[strip] = [h, s, v];
+        stripStatus[strip] = {"color": [h, s, v]};
     }
 
     var stripStatusRGB = [];
     for (var strip=0; strip<stripStatus.length; strip++) {
-        stripStatusRGB[strip] = hslToRgb(
+        stripStatusRGB[strip] = {"color": hslToRgb(
             stripStatus[strip][0],
             stripStatus[strip][1],
             stripStatus[strip][2]
-        );
+        )};
     }
 
     if (stripStatus.length > config.numStrips) {
-        writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0]);
+        writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0].color);
     }
 
     var toWrite = stripStatusRGB.slice(0,config.numStrips);
@@ -659,14 +778,14 @@ function _writeColor(r, g, b, strip) {
     var hsv = rgbToHsl(r,g,b);
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
-            stripStatus[strip[i]] = [hsv[0],hsv[1],hsv[2]];
+            stripStatus[strip[i]] = {"color": [hsv[0],hsv[1],hsv[2]]};
         }
     } else {
-        stripStatus[strip] = [hsv[0],hsv[1],hsv[2]];
+        stripStatus[strip] = {"color": [hsv[0],hsv[1],hsv[2]]};
     }
 
     if (stripStatus.length > config.numStrips) {
-        writeOneColorStrip(stripStatus.slice(config.numStrips)[0]);
+        writeOneColorStrip(stripStatus.slice(config.numStrips)[0].color);
     }
 
     var toWrite = stripStatus.slice(0,config.numStrips);

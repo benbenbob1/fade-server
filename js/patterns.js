@@ -179,21 +179,24 @@ var patterns = {
 			}
 		},
 		function: function() {
-			this.patternHue += 0.05;
-			if (this.patternHue >= 1.0) {
-				this.patternHue = 0.0;
+			this.variables.hue += 0.05;
+			if (this.variables.hue >= 1.0) {
+				this.variables.hue = 0.0;
 			}
-			var col = this.hslToRgb(this.patternHue, this.options.saturation.value, this.options.brightness.value);
-			this.writeColor([
-				[col[0], col[1], col[2]],
-				[col[0], col[1], col[2]]
-			]);
+			this.writeColorHSV(
+				this.variables.hue, 
+				this.options.saturation.value,
+				this.options.brightness.value,
+				this.stripIdx
+			);
 			//console.log(this.options.saturation.value);
 			if (!this.options.fade.value) {
-				this.writeColor([
-					[col[0], col[1], col[2]],
-					[col[0], col[1], col[2]]
-				]);
+				this.writeColorHSV(
+					this.variables.hue, 
+					this.options.saturation.value,
+					this.options.brightness.value,
+					this.stripIdx
+				);
 			}
 		}
 	},
@@ -230,8 +233,6 @@ var patterns = {
 			}
 		},
 		function: function() {
-			var strips = [];
-			var stripCount = 2;
 			function randColor(brightness) {
 				function color() {
 					return Math.floor(Math.random() * 255 * brightness);
@@ -242,16 +243,19 @@ var patterns = {
 					color()
 				];
 			}
-			for (var s=0; s<stripCount; s++) {
-				var strip = [];
-				for (var x=0; x<30; x++) {
-					strip.push(randColor(this.options.brightness.value));
-				}
-				strips.push(strip);
+			
+			var strip = [];
+			for (var x=0; x<30; x++) {
+				strip.push(randColor(this.options.brightness.value));
 			}
-			this.writeLEDs(strips);
+			strips.push(strip);
+
+			var allStrips = [];
+			allStrips[this.stripIdx] = strip;
+			
+			this.writeLEDs(allStrips, false);
 			if (!this.options.fade.value) {
-				this.writeLEDs(strips);
+				this.writeLEDs(allStrips, false);
 			}
 		}
 	},
@@ -316,7 +320,7 @@ var patterns = {
 		},
 		function: function() {
 			var strip = []; //one strip of 60 leds
-			var leds = 128;
+			var leds = 64;
 			for (var i=0; i<leds; i++) {
 				strip[i] = [0,0,0];
 			}
@@ -338,9 +342,13 @@ var patterns = {
 				offset = blue - bluePos;
 				strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
 			}
-			this.writeLEDs(strip, true);
+
+			var allStrips = [];
+			allStrips[this.stripIdx] = strip;
+
+			this.writeLEDs(allStrips, false);
 			if (!this.options.fade.value) {
-				this.writeLEDs(strip, true);
+				this.writeLEDs(allStrips, false);
 			}
 
 			if (redPos === 0) {
@@ -417,14 +425,14 @@ var patterns = {
 			}
 		},
 		function: function() {
-			this.patternHue += 0.1;
-			if (this.patternHue > 1.0) {
-				this.patternHue -= 1.0;
+			this.variables.hue += 0.1;
+			if (this.variables.hue > 1.0) {
+				this.variables.hue -= 1.0;
 			}
 
 			var strip = [];
 			for (var led=0; led<30; led++) {
-				var hue = this.patternHue+((led/30));
+				var hue = this.variables.hue+((led/30));
 				if (hue > 1.0) {
 					hue -= 1.0;
 				}
@@ -434,9 +442,11 @@ var patterns = {
 				);
 				strip.push(col);
 			}
-			this.writeLEDs([strip, strip]);
+			var allStrips = [];
+			allStrips[this.stripIdx] = strip;
+			this.writeLEDs(allStrips);
 			if (!this.options.fade.value) {
-				this.writeLEDs([strip, strip]);
+				this.writeLEDs(allStrips);
 			}
 		}
 	}

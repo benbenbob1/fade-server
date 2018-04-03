@@ -11,8 +11,21 @@ var colorOverlay = null;
 
 var config = {};
 
-// Each status can be: { "pattern": "xxx" } or { "color": [h, s, v] }
-// For each led strip, first all multicolored, then one-color strips
+
+/*
+stripStatus = [
+    { //Strip 0
+        "color": [
+            h: 0-1 //percent hue
+            s: 0-1 //percent saturation
+            v: 0-1 //percent value (brightness or lightness)
+        ]
+        // OR (should not be both)
+        "pattern": "waves"
+    }, ...
+]
+*/
+// For each led strip, first all multicolored, then single-color strips
 var serverCurStatus = []
 
 $(document).ready(function() {
@@ -39,21 +52,16 @@ $(document).ready(function() {
 
 socket.on('color', function(data) {
     //console.log('Client rec: '+JSON.stringify(data));
+    var strip = 0;
+
     if ('strip' in data) {
-        if (colorOverlay != null) {
-            colorOverlay.deselectPreset();
-        }
-        setLocalColor(data.strip, [data.h, data.s, data.v]);
-    } else if ('id' in data) {
-        if (data.id != 'stop') {
-            if (colorOverlay != null) {
-                colorOverlay.deselectPreset();
-                colorOverlay.choosePreset(data.id, data.config);
-            }
-        } else {
-            removeConfig();
-            console.log("Got stop pattern message");
-        }
+        strip = data.strip;
+    }
+
+    if ('color' in data) {
+        setLocalColor(strip, [data.color[0], data.color[1], data.color[2]]);
+    } else if ('pattern' in data) {
+        setLocalPattern(strip, data.pattern);
     }
 });
 
@@ -147,16 +155,45 @@ function setLocalColor(strip, hsv) {
     }
 }
 
+//Strip is #, Pattern is string
+function setLocalPattern(strip, patternName) {
+    var colorOverlayOpen = false;
+    if (colorOverlay != null && colorOverlay.curStrip === strip) {
+        colorOverlayOpen = true;
+    }
+
+
+    if (patternName != 'stop') {
+        if (colorOverlayOpen) {
+            colorOverlay.deselectPreset();
+            colorOverlay.choosePreset(data.id, data.config);
+        }
+    } else {
+        if (colorOverlayOpen) {
+            colorOverlay.deselectPreset();
+        }
+        console.log("Got stop pattern message");
+    }
+}
+
+//TODO: buffer queue, with a max height
 var bufferOpen = true;
 function post(data) {
     if (bufferOpen) {
-        //console.log('Posting '+JSON.stringify(data))
         socket.emit('newcolor', data);
         bufferOpen = false;
         setTimeout(function() {
             bufferOpen = true;
-        }, 100);
+        }, 50);
+        return true;
+    } else {
+        setTimeout(function() {
+            if (bufferOpen) {
+                post(data);
+            }
+        }, 50);
     }
+    return false;
 }
 
 function componentToHex(c) {
@@ -508,24 +545,17 @@ class ColorPicker {
             var canvasY = firstTouch.pageY - canvasOffsetY;
             var canvasX = firstTouch.pageX - canvasOffsetX;
 
-            //console.log("TE: "+canvasX+", "+canvasY);
             didTouchCanvas(canvasX, canvasY);
         }
 
-        this.canvas.ontouchstart = function(e) {
+        var mobileTouch = function(e) {
             e.preventDefault();
             touchEvent(e);
         }
 
-        this.canvas.ontouchend = function(e) {
-            e.preventDefault();
-            touchEvent(e);
-        }
-
-        this.canvas.ontouchmove = function(e) {
-            e.preventDefault();
-            touchEvent(e);
-        }
+        this.canvas.ontouchstart = mobileTouch;
+        this.canvas.ontouchmove = mobileTouch;
+        this.canvas.ontouchend = mobileTouch;
 
         this.canvas.onmousemove = mouseEvent;
         this.canvas.onmousedown = mouseEvent;
@@ -679,6 +709,7 @@ class ColorPicker {
     }
 
     deselectPreset() {
+        this.removeConfig();
         $('.button-selected').blur();
         return $('.button-selected').removeClass('button-selected').attr('id');
     }
