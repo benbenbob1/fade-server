@@ -50,7 +50,7 @@ var ledPins = {
     blue: 24
 };
 
-const var OFF_COLOR_HSV = [0, 1, 0];
+const OFF_COLOR_HSV = [0, 1, 0];
 
 /*
 stripStatus = [
@@ -61,7 +61,7 @@ stripStatus = [
             v: 0-1 //percent value (brightness or lightness)
         ]
         // OR (should not be both)
-        "pattern": //PATTERN OBJECT
+        "pattern": pattern id
     }, ...
 ]
 */
@@ -133,6 +133,8 @@ app.post('/api/color', function(req, res) {
     var s = req.body['s'] || 0;
     var v = req.body['v'] || 0;
 
+    //TODO: fix
+
     endPattern();
 
     if (r == g == b == 0) {
@@ -176,7 +178,7 @@ app.post('/api/endpoint/echo', function(req, res) {
         }
     };
     if (color) {
-        endPattern();
+        //TODO FIX
         var arr = arrayOfNumbersUpTo(totalStrips);
         _writeColor(color.r, color.g, color.b, arr);
         _writeColor(color.r, color.g, color.b, arr);
@@ -300,7 +302,7 @@ function connectSocket() {
         log("Socket connected "+connAddr);
         socket.join('color');
 
-        broadcastToStrips(stripStatus)
+        broadcastToStrips()
         
         socket.on('newcolor', function(data) {
             if (!('strip' in data)) {
@@ -309,18 +311,29 @@ function connectSocket() {
             var strip = data.strip || 0;
 
             if ('color' in data) {
-                if (pattern != null) {
+                /*if (pattern != null) {
                     endPattern();
-                }
-                _writeColorHSV(
+                }*/
+                setStripColorHSV(
+                    strip,
+                    data.color[0],
+                    data.color[1],
+                    data.color[2],
+                    true
+                );
+                /*_writeColorHSV(
                     data.color[0],
                     data.color[1],
                     data.color[2],
                     strip
                 );
-                broadcastColorHSV(false, strip);
+                broadcastColorHSV(false, strip);*/
             } else if ('pattern' in data) {
-                startPattern(data.pattern, strip);
+                //startPattern(data.pattern, strip);
+                setStripPattern(
+                    strip,
+                    data.pattern //pattern id
+                );
             } else if ('config' in data) {
                 //TODO:FIXCONFIG
                 if (pattern && pattern.options &&
@@ -336,9 +349,10 @@ function connectSocket() {
     });
 }
 
-//Broadcast all info about all strips to one socket (or every socket)
-function broadcastToStrips(stripStatusArr, socketOrNull=null) {
-    var out = socket || serverSocket;
+//Broadcast all info about all strips to one socket (or every socket if null)
+function broadcastToStrips(stripStatusArr=false, socketOrNull=false) {
+    var out = socketOrNull || serverSocket;
+    var stripStatusOut = stripStatusArr || stripStatus;
 
     var stripDict;
     for (var strip = 0; strip < stripStatusArr.length; strip++) {
@@ -357,8 +371,15 @@ function broadcastToStrips(stripStatusArr, socketOrNull=null) {
     }
 }
 
+function setStripColorHSV(stripIdx=0, h=0, s=0, v=0, 
+    broadcast=true, socket=false) {
+    var out = socket || serverSocket;
+
+}
+
 //Socket or false, stripIdx
-function broadcastColorHSV(socket, stripIdx=-1) {
+//Broadcast the strip status to a socket about a strip
+function broadcastColorHSV(socket=false, stripIdx=-1) {
     var out = socket || serverSocket;
 
     var emit = function(stripIdxToSend) {
@@ -380,7 +401,7 @@ function broadcastColorHSV(socket, stripIdx=-1) {
     }
 }
 
-function broadcastColor(socket) {
+/*function broadcastColor(socket) {
     console.log("Broadcasting RGB (converted)");
 
     if (socket) {
@@ -414,7 +435,7 @@ function broadcastColor(socket) {
             });
         }
     }
-}
+}*/
 
 function getColors() {
     var colorArr = [];
@@ -651,7 +672,7 @@ function endPattern(dontEmit, stripIdx) {
 }
 
 // [[r,g,b], [r,g,b]]
-function writeColors(rgbArr) {
+/*function writeColors(rgbArr) {
     var leds = [];
     for (var strip = 0; strip < rgbArr.length; strip++) {
         var aStrip = [];
@@ -665,11 +686,11 @@ function writeColors(rgbArr) {
         leds.push(aStrip);
     }
     writeLEDs(leds, false);
-}
+}*/
 
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
 //  or array of rgb if onestrip is true
-function writeLEDs(arr, onestrip) {
+function _writeLEDs(arr, onestrip) {
     //log("Writing leds to "+ arr.length +" strips");
     var packet = new Uint8ClampedArray(
         4 + (config.maxLedsPerStrip * config.numStrips) * 3
