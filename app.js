@@ -13,8 +13,8 @@ var express           = require('express'),
     WebSocketClient   = require('ws'),
     WebSocketServer   = require('socket.io'),
     bodyParser        = require('body-parser');
-
 var patterns          = require('./js/patterns');
+var FunctionScheduler = require('./js/scheduler');
 
 var configFile = 'js/config.json';
 
@@ -61,7 +61,8 @@ stripStatus = [
             v: 0-1 //percent value (brightness or lightness)
         ]
         // OR (should not be both)
-        "pattern": pattern id
+        "pattern": copy of pattern object (from patterns.js) 
+            WITH pid value
     }, ...
 ]
 */
@@ -96,6 +97,7 @@ stripStatus = [
             'strip': 1,
             'color': [0.5, 1, 0.5]
         }
+    
 
 
         newconfig: {
@@ -103,6 +105,11 @@ stripStatus = [
             CONFIG_ID: NEW_VALUE
         }
 
+    Upon receiving the newcolor pattern message, that pattern repeat function is
+    added to the scheduler at the specified interval
+
+    //TODO make PID non static per pattern object, make options static
+    //TODO: update scheduled task interval (need to add feature to scheduler)
 */
 
 var stripStatus = Array(totalStrips).fill({"color": OFF_COLOR_HSV});
@@ -230,6 +237,12 @@ server.listen(port, function() {
     log("Fade-server is listening on port "+port);
 });
 
+log("Starting function scheduler (t=0)");
+var scheduler = new FunctionScheduler();
+scheduler.timerBegin();
+
+// \/ functions
+
 function moduleAvailable(name) {
     try {
         require.resolve(name);
@@ -329,10 +342,10 @@ function connectSocket() {
                 );
                 broadcastColorHSV(false, strip);*/
             } else if ('pattern' in data) {
-                //startPattern(data.pattern, strip);
-                setStripPattern(
-                    strip,
-                    data.pattern //pattern id
+                // Start pattern
+                startPattern(
+                    data.pattern, //pattern id
+                    strip
                 );
             } else if ('config' in data) {
                 //TODO:FIXCONFIG
@@ -600,7 +613,7 @@ function startPattern(id, stripIdx=0) {
                         }
                     }
                 }
-            }
+            };
             me = {
                 getColors: getColors,
                 writeColor: writeColors,
@@ -619,11 +632,12 @@ function startPattern(id, stripIdx=0) {
                 }
                 justStarted = false;
                 pattern.function.call(me);
-                pattern.interval = setTimeout(callPattern, 
-                    options.interval.value);
-            }
+            };
+            //pattern.interval = setTimeout(callPattern, 
+            //    options.interval.value);
             patternStart();
-            callPattern();
+            pattern.PID =
+                scheduler.addTask(callPattern, options.inverval.value);
         } else if (pattern.options.interval.defaultValue < 0) {
             pattern.interval = setTimeout(pattern.function, 
                 -options.interval.value);
@@ -646,7 +660,7 @@ function endPattern(dontEmit, stripIdx) {
         return;
     }
 
-
+    /*
     var patternOnlyOnThisStrip = true;
     var patternUsage = 0;
     for (var s=0; s<stripStatus; s++) {
@@ -662,6 +676,10 @@ function endPattern(dontEmit, stripIdx) {
             clearTimeout(patternInterval);
         }
         pattern = null;
+    }*/
+
+    if (!isNaN(thePattern.PID)) { //thePattern has PID of type #
+        scheduler.removeTask(thePattern.PID);
     }
 
     delete stripStatus[stripIdx].pattern;
