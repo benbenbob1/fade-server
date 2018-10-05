@@ -198,8 +198,8 @@ app.post('/api/endpoint/echo', function(req, res) {
 });
 
 var serverOptions = (function(){
-    var keyFile = "/etc/letsencrypt/live/rpi.student.rit.edu/privkey.pem";
-    var certFile = "/etc/letsencrypt/live/rpi.student.rit.edu/fullchain.pem";
+    var keyFile = "/etc/letsencrypt/live/lights.benbrown.science/privkey.pem";
+    var certFile = "/etc/letsencrypt/live/lights.benbrown.science/fullchain.pem";
     try {
         var kContents = fs.readFileSync(keyFile, 'utf8');
         var cContents = fs.readFileSync(certFile, 'utf8');
