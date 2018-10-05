@@ -144,12 +144,11 @@ app.post('/api/color', function(req, res) {
 
     endPattern();
 
-    if (r == g == b == 0) {
-        //TODO: TEST THIS
-        [r,g,b] = hslToRgb(h, s, v);
+    if (h == s == v == 0) {
+        [h,s,v] = rgbToHsl(r, g, b);
     }
 
-    log("Got API call. Setting to rgb ("+r+", "+g+", "+b+").");
+    log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
     _writeColor(r, g, b, arrayOfNumbersUpTo(totalStrips));
     broadcastColor();
@@ -388,6 +387,15 @@ function setStripColorHSV(stripIdx=0, h=0, s=0, v=0,
     broadcast=true, socket=false) {
     var out = socket || serverSocket;
 
+    _writeColorHSV(
+        h,
+        s,
+        v,
+        stripIdx
+    );
+    if (broadcast) {
+        broadcastColorHSV(socket, strip);
+    }
 }
 
 //Socket or false, stripIdx
@@ -782,6 +790,9 @@ function _writeColorHSV(h, s, v, strip) {
             stripStatus[strip[i]] = {"color": [h, s, v]};
         }
     } else {
+        if (strip < 0) {
+            strip = 0;
+        }
         stripStatus[strip] = {"color": [h, s, v]};
     }
 
