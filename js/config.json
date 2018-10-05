@@ -1,8 +1,8 @@
 {
     "maxLedsPerStrip"   : 64,
     "ledsPerStrip"      : 30,
-    "numStrips"         : 2,
+    "numStrips"         : 1,
     "numOneColorStrips" : 0,
-    "https"             : false,
+    "https"             : true,
     "port"              : 80
 }
