@@ -767,11 +767,6 @@ function writeOneColorStrip(rgb) {
 
 //h/s/v out of 1.0
 function _writeColorHSV([h, s, v], strip) {
-    h = h.toFixed(4);
-    s = s.toFixed(4);
-    v = v.toFixed(4);
-    //console.log("Writing: ", [h,s,v], strip);
-
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
             stripStatus[strip[i]] = {"color": [h, s, v]};
@@ -784,12 +779,14 @@ function _writeColorHSV([h, s, v], strip) {
     }
 
     var stripStatusRGB = [];
-    for (var strip=0; strip<stripStatus.length; strip++) {
-        stripStatusRGB[strip] = {"color": hslToRgb(
-            stripStatus[strip][0],
-            stripStatus[strip][1],
-            stripStatus[strip][2]
-        )};
+    for (var s=0; s<stripStatus.length; s++) {
+        stripStatusRGB[s] = {
+            "color": hslToRgb(
+                stripStatus[s].color[0],
+                stripStatus[s].color[1],
+                stripStatus[s].color[2]
+            )
+        };
     }
 
     if (stripStatus.length > config.numStrips) {
@@ -802,7 +799,7 @@ function _writeColorHSV([h, s, v], strip) {
     for (var i=0; i<toWrite.length; i++) {
         var stripLEDs = [];
         for (var j=0; j<config.ledsPerStrip; j++) {
-            stripLEDs.push(stripStatusRGB[i]);
+            stripLEDs.push(stripStatusRGB[i].color);
         }
         leds.push(stripLEDs);
     }
