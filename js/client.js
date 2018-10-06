@@ -52,7 +52,6 @@ $(document).ready(function() {
 
 
 socket.on('color', function(data) {
-    //console.log('Client rec: '+JSON.stringify(data));
     var strip = 0;
 
     if ('strip' in data) {

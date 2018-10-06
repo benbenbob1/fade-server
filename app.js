@@ -312,7 +312,7 @@ function connectSocket() {
         broadcastToStrips()
         
         socket.on('newcolor', function(data) {
-            console.log("rec: ", data);
+            //console.log("rec: ", data);
             if (!('strip' in data)) {
                 return;
             }
@@ -388,10 +388,8 @@ function broadcastColorHSV(socket=false, stripIdx=-1) {
     var emit = function(stripIdxToSend) {
         var stripColor = stripStatus[stripIdxToSend].color;
         out.emit('color', {
-            h: stripColor[0],
-            s: stripColor[1],
-            v: stripColor[2],
-            strip: stripIdxToSend
+            strip: stripIdxToSend,
+            color: stripColor
         });
     }
 
