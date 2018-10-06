@@ -115,15 +115,10 @@ stripStatus = [
 var stripStatus = Array(totalStrips).fill({"color": OFF_COLOR_HSV});
 
 app.use(bodyParser.json());
-app.use(function(req, res, next) {
-    //allow downloading from benbrown.science
-    res.setHeader('Access-Control-Allow-Origin', 'http://benbrown.science'); 
-    next();
-});
 app.use('/js',
     express.static(__dirname + '/js'));
 app.use('/js/socketio', 
-    express.static(__dirname + "/node_modules/socket.io-client/"));
+    express.static(path.join(__dirname, '/node_modules/socket.io-client/dist/')));
 app.use('/assets',
     express.static(__dirname + '/assets'));
 
