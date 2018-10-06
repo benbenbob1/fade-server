@@ -8,6 +8,7 @@ var curFade = '';
 var reachable = false;
 
 var colorOverlay = null;
+var selectedStripIdx = -1;
 
 var config = {};
 
@@ -162,7 +163,6 @@ function setLocalPattern(strip, patternName) {
         colorOverlayOpen = true;
     }
 
-
     if (patternName != 'stop') {
         if (colorOverlayOpen) {
             colorOverlay.deselectPreset();
@@ -176,9 +176,23 @@ function setLocalPattern(strip, patternName) {
     }
 }
 
+function postColor(strip, [h,s,v]) {
+    socketSend({
+        'strip': strip,
+        'color': [h, s, v]
+    });
+}
+
+function postPattern(strip, id) {
+    socketSend({
+        'strip': strip,
+        'pattern': id
+    });
+}
+
 //TODO: buffer queue, with a max height
 var bufferOpen = true;
-function post(data) {
+function socketSend(data) {
     if (bufferOpen) {
         socket.emit('newcolor', data);
         bufferOpen = false;
@@ -189,7 +203,7 @@ function post(data) {
     } else {
         setTimeout(function() {
             if (bufferOpen) {
-                post(data);
+                socketSend(data);
             }
         }, 50);
     }
@@ -214,22 +228,7 @@ function getTextColorForBackground(r, g, b) {
 
 // If strip num > number of strips or < 0, sets all strips
 function colorUpdated(stripNum, newHSV) {
-    var color = {};
-    color.h = newHSV[0];
-    color.s = newHSV[1];
-    color.v = newHSV[2];
-    color.strip = [];
-
-    var allStrips = config.numStrips + config.numOneColorStrips || 0;
-
-    if (stripNum < 0 || stripNum >= allStrips) {
-        color.strip = arrayOfNumbersUpTo(
-            config.numStrips + config.numOneColorStrips);
-        post(color);
-    } else {
-        color.strip = stripNum
-        post(color);
-    }
+    postColor(stripNum, newHSV);
 }
 
 function arrayOfNumbersUpTo(max) {
@@ -252,6 +251,8 @@ function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
     if (visible) {
         overlayContainer.style.visibility = "visible";
         overlayContainer.style.opacity = "1.0";
+
+        selectedStripIdx = stripId;
 
         modalElem.classList.add(modalOpenClass);
     } else {
@@ -732,10 +733,10 @@ class ColorPicker {
         if (id !== last) {
             var submission = id.substring("pattern-".length);
             //setupConfig(patterns[submission].options || null);
-            post({id: submission});
+            postPattern(selectedStripIdx, submission);
         } else {
             removeConfig();
-            post({id: "stop"});
+            postPattern(selectedStripIdx, "stop");
         }
     }
 

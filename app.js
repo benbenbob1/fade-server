@@ -312,29 +312,18 @@ function connectSocket() {
         broadcastToStrips()
         
         socket.on('newcolor', function(data) {
+            console.log("rec: ", data);
             if (!('strip' in data)) {
                 return;
             }
             var strip = data.strip || 0;
 
             if ('color' in data) {
-                /*if (pattern != null) {
-                    endPattern();
-                }*/
                 setStripColorHSV(
                     strip,
-                    data.color[0],
-                    data.color[1],
-                    data.color[2],
+                    data.color,
                     true
                 );
-                /*_writeColorHSV(
-                    data.color[0],
-                    data.color[1],
-                    data.color[2],
-                    strip
-                );
-                broadcastColorHSV(false, strip);*/
             } else if ('pattern' in data) {
                 // Start pattern
                 startPattern(
@@ -378,18 +367,16 @@ function broadcastToStrips(stripStatusArr=false, socketOrNull=false) {
     }
 }
 
-function setStripColorHSV(stripIdx=0, h=0, s=0, v=0, 
+function setStripColorHSV(stripIdx=0, [h=0, s=0, v=0], 
     broadcast=true, socket=false) {
     var out = socket || serverSocket;
 
     _writeColorHSV(
-        h,
-        s,
-        v,
+        [ h, s, v ],
         stripIdx
     );
     if (broadcast) {
-        broadcastColorHSV(socket, strip);
+        broadcastColorHSV(socket, stripIdx);
     }
 }
 
@@ -779,7 +766,12 @@ function writeOneColorStrip(rgb) {
 }
 
 //h/s/v out of 1.0
-function _writeColorHSV(h, s, v, strip) {
+function _writeColorHSV([h, s, v], strip) {
+    h = h.toFixed(4);
+    s = s.toFixed(4);
+    v = v.toFixed(4);
+    //console.log("Writing: ", [h,s,v], strip);
+
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
             stripStatus[strip[i]] = {"color": [h, s, v]};
@@ -815,7 +807,7 @@ function _writeColorHSV(h, s, v, strip) {
         leds.push(stripLEDs);
     }
 
-    return writeLEDs(leds, false);
+    return _writeLEDs(leds, false);
 }
 
 //r/g/b out of 255
