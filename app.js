@@ -598,7 +598,8 @@ function startPattern(id, stripIdx=0) {
 }
 
 //TODO: FIXME
-function endPattern(dontEmit, stripIdx) {
+function endPattern(dontEmit=false, stripIdx=-1) {
+    return;
     log("Stopping pattern");
     var thePattern = null;
     if ("pattern" in stripStatus[stripIdx]) {
