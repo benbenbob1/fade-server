@@ -5,16 +5,16 @@
   "author": "Ben Brown : http://benbrown.science",
   "homepage": "http://benbrown.science",
   "dependencies": {
-    "body-parser": "^1.14.2",
+    "body-parser": "^1.18.3",
     "color-namer": "^1.1.0",
-    "express": "^4.13.4",
+    "express": "^4.16.3",
     "fs": "0.0.1-security",
     "http": "0.0.0",
     "https": "^1.0.0",
-    "socket.io": "^1.4.5",
-    "socket.io-client": "^1.4.5",
+    "socket.io": "^2.1.1",
+    "socket.io-client": "^2.1.1",
     "tls": "0.0.1",
     "typescript": "^3.0.3",
-    "ws": "^1.0.1"
+    "ws": "^6.1.0"
   }
 }

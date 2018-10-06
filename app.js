@@ -300,14 +300,14 @@ function connectSocket() {
     var addr = 'ws://127.0.0.1:7890';
     //var addr = 'ws://rpi.student.rit.edu:7890';
     log("Connecting websocket to "+addr)
-    clientSocket = WebSocketClient(addr);
+    clientSocket = new WebSocketClient(addr);
     clientSocket.on('open', function() {
         log("FC websocket opened successfully!");
     });
 
     clientSocket.on('error', socketErr);
 
-    serverSocket = WebSocketServer(server);
+    serverSocket = new WebSocketServer(server);
     serverSocket.on('connection', function(socket) {
         var connAddr = socket.request.connection.remoteAddress;
         socketReady = true;
