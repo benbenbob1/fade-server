@@ -135,8 +135,6 @@ app.post('/api/color', function(req, res) {
     var s = req.body['s'] || 0;
     var v = req.body['v'] || 0;
 
-    //TODO: fix
-
     endPattern();
 
     if (h == s == v == 0) {
@@ -145,8 +143,7 @@ app.post('/api/color', function(req, res) {
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
-    _writeColor(r, g, b, arrayOfNumbersUpTo(totalStrips));
-    broadcastColorHSV(false, -1);
+    setStripColorHSV( -1, [h, s, v], true );
     res.send([r, g, b].join(", "));
 });
 
@@ -179,11 +176,11 @@ app.post('/api/endpoint/echo', function(req, res) {
         }
     };
     if (color) {
-        //TODO FIX
-        var arr = arrayOfNumbersUpTo(totalStrips);
-        _writeColor(color.r, color.g, color.b, arr);
-        _writeColor(color.r, color.g, color.b, arr);
-        broadcastColorHSV(false, -1);
+        setStripColorHSV(
+            -1, 
+            rgbToHsl(color.r, color.g, color.b), 
+            true
+        );
         output.response.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
         output.response.outputSpeech.text = "I could not find '"+colorName+"'";
