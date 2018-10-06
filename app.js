@@ -146,7 +146,7 @@ app.post('/api/color', function(req, res) {
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
     _writeColor(r, g, b, arrayOfNumbersUpTo(totalStrips));
-    broadcastColor();
+    broadcastColorHSV(false, -1);
     res.send([r, g, b].join(", "));
 });
 
@@ -183,7 +183,7 @@ app.post('/api/endpoint/echo', function(req, res) {
         var arr = arrayOfNumbersUpTo(totalStrips);
         _writeColor(color.r, color.g, color.b, arr);
         _writeColor(color.r, color.g, color.b, arr);
-        broadcastColor();
+        broadcastColorHSV(false, -1);
         output.response.outputSpeech.text = "Color set to '"+colorName+"'";
     } else {
         output.response.outputSpeech.text = "I could not find '"+colorName+"'";
@@ -401,42 +401,6 @@ function broadcastColorHSV(socket=false, stripIdx=-1) {
         }
     }
 }
-
-/*function broadcastColor(socket) {
-    console.log("Broadcasting RGB (converted)");
-
-    if (socket) {
-        for (var s=0; s<stripStatus.length; s++) {
-            var rgb = hslToRgb(
-                stripStatus[s][0],
-                stripStatus[s][1],
-                stripStatus[s][2]
-            );
-
-            socket.emit('colorRGB', {
-                r: rgb[0],
-                g: rgb[1],
-                b: rgb[2],
-                strip: s
-            });
-        }
-    } else {
-        for (var s=0; s<stripStatus.length; s++) {
-            var rgb = hslToRgb(
-                stripStatus[s][0],
-                stripStatus[s][1],
-                stripStatus[s][2]
-            );
-
-            serverSocket.emit('colorRGB', {
-                r: rgb[s][0],
-                g: rgb[s][1],
-                b: rgb[s][2],
-                strip: s
-            });
-        }
-    }
-}*/
 
 function getColors() {
     var colorArr = [];
