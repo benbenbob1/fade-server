@@ -606,7 +606,7 @@ function startPattern(id, stripIdx=0) {
                 getColors: getColors,
                 writeColor: writeColors,
                 writeColorHSV: _writeColorHSV,
-                writeLEDs: writeLEDs,
+                writeLEDs: _writeLEDs,
                 hslToRgb: hslToRgb,
                 options: options,
                 variables: {},
@@ -676,23 +676,6 @@ function endPattern(dontEmit, stripIdx) {
         broadcastPattern(serverSocket, stripIdx, 'stop');
     }
 }
-
-// [[r,g,b], [r,g,b]]
-/*function writeColors(rgbArr) {
-    var leds = [];
-    for (var strip = 0; strip < rgbArr.length; strip++) {
-        var aStrip = [];
-        for (var led = 0; led < config.ledsPerStrip; led++) {
-            aStrip.push([
-                rgbArr[strip][0],
-                rgbArr[strip][1],
-                rgbArr[strip][2],
-            ]);
-        }
-        leds.push(aStrip);
-    }
-    writeLEDs(leds, false);
-}*/
 
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
 //  or array of rgb if onestrip is true
@@ -831,5 +814,5 @@ function _writeColor(r, g, b, strip) {
         leds.push(stripLEDs);
     }
 
-    return writeLEDs(leds, false);
+    return _writeLEDs(leds, false);
 }
