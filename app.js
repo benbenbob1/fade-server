@@ -166,9 +166,10 @@ app.post('/api/color', function(req, res) {
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
-    setStripColorHSV(strip, [h, s, v], true );
+    setStripColorHSV(strip, [h, s, v], true);
     res.send({
         "operation": "success",
+        "strip": strip,
         "HSV": [h, s, v].join(", ")
     });
 });
@@ -773,7 +774,7 @@ function _writeColorHSV([h, s, v], strip) {
             stripStatus[strip[i]] = {"color": [h, s, v]};
         }
     } else {
-        if (strip < 0) {
+        if (strip < 0 || strip > config.numStrips - 1) {
             strip = 0;
         }
         stripStatus[strip] = {"color": [h, s, v]};
