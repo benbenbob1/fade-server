@@ -52,7 +52,7 @@ var ledPins = {
 
 const OFF_COLOR_HSV = [0, 1, 0];
 const ROUND_DECIMALS = 3; // Round signals to this many decimal places
-const SV_MARGIN_CAP = 5; // sat & value stick to min/max at this margin 
+const SV_MARGIN_CAP = 0.05; // sat & value stick to min/max at this margin 
 
 /*
 stripStatus = [
