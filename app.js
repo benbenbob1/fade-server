@@ -51,6 +51,8 @@ var ledPins = {
 };
 
 const OFF_COLOR_HSV = [0, 1, 0];
+const ROUND_DECIMALS = 3; // Round signals to this many decimal places
+const SV_MARGIN_CAP = 5; // sat & value stick to min/max at this margin 
 
 /*
 stripStatus = [
@@ -118,7 +120,8 @@ app.use(bodyParser.json());
 app.use('/js',
     express.static(__dirname + '/js'));
 app.use('/js/socketio', 
-    express.static(path.join(__dirname, '/node_modules/socket.io-client/dist/')));
+    express.static(path.join(__dirname, 
+        '/node_modules/socket.io-client/dist/')));
 app.use('/assets',
     express.static(__dirname + '/assets'));
 
@@ -126,6 +129,24 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/page.html');
 });
 
+/*
+
+// POST /api/color
+{
+    'r': 0-255,
+    'g': 0-255,
+    'b': 0-255,
+    ['strip': -1, 0+]
+}
+OR
+{
+    'h': 0.0-1.0,
+    's': 0.0-1.0,
+    'v': 0.0-1.0,
+    ['strip': -1, 0+]
+} 
+
+*/
 app.post('/api/color', function(req, res) {
     var r = req.body['r'] || 0;
     var g = req.body['g'] || 0;
@@ -135,16 +156,21 @@ app.post('/api/color', function(req, res) {
     var s = req.body['s'] || 0;
     var v = req.body['v'] || 0;
 
+    var strip = req.body['strip'] || -1;
+
     endPattern();
 
-    if (h == s == v == 0) {
+    if (h === 0 && s === 0 && v === 0) {
         [h,s,v] = rgbToHsl(r, g, b);
     }
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
-    setStripColorHSV( -1, [h, s, v], true );
-    res.send([r, g, b].join(", "));
+    setStripColorHSV(strip, [h, s, v], true );
+    res.send({
+        "operation": "success",
+        "HSV": [h, s, v].join(", ")
+    });
 });
 
 app.post('/api/endpoint/echo', function(req, res) {
@@ -190,7 +216,7 @@ app.post('/api/endpoint/echo', function(req, res) {
 
 var serverOptions = (function(){
     var keyFile = "/etc/letsencrypt/live/lights.benbrown.science/privkey.pem";
-    var certFile = "/etc/letsencrypt/live/lights.benbrown.science/fullchain.pem";
+    var certFile ="/etc/letsencrypt/live/lights.benbrown.science/fullchain.pem";
     try {
         var kContents = fs.readFileSync(keyFile, 'utf8');
         var cContents = fs.readFileSync(certFile, 'utf8');
@@ -306,7 +332,7 @@ function connectSocket() {
         log("Socket connected "+connAddr);
         socket.join('color');
 
-        broadcastToStrips()
+        broadcastAllStrips(socket)
         
         socket.on('newcolor', function(data) {
             //console.log("rec: ", data);
@@ -342,14 +368,59 @@ function connectSocket() {
     });
 }
 
-//Broadcast all info about all strips to one socket (or every socket if null)
-function broadcastToStrips(stripStatusArr=false, socketOrNull=false) {
-    var out = socketOrNull || serverSocket;
+function roundDecimal(value) {
+    return Number(value.toFixed(ROUND_DECIMALS));
+}
+
+function capAndRound(value, min, max) {
+    var out = roundDecimal(value);
+    if (out > max - SV_MARGIN_CAP) { 
+        return max;
+    } else if (out < min + SV_MARGIN_CAP) {
+        return min;
+    }
+    
+    return out;
+}
+
+function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0], 
+    broadcast=true, socket=false) {
+    var out = socket || serverSocket;
+
+    h = roundDecimal(h, ROUND_DECIMALS);
+    s = capAndRound(s, 0, 1);
+    v = capAndRound(v, 0, 1);
+
+    if (!Number.isSafeInteger(stripIdx) || 
+        stripIdx < 0 || 
+        stripIdx > config.numStrips - 1) {
+        
+        for (var strip=0; strip<config.numStrips.length; strip++) {
+            writeAndBroadcast([h,s,v], socket, strip, broadcast);
+        }
+    } else {
+        writeAndBroadcast([h,s,v], socket, stripIdx, broadcast);
+    }
+}
+
+function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false) {
+    _writeColorHSV(
+        [ h, s, v ],
+        stripIdx
+    );
+    if (broadcast) {
+        broadcastColorHSV(socket, stripIdx);
+    }
+}
+
+//Broadcast all info about all strips to one socket (or every socket if false)
+function broadcastAllStrips(socket=false, stripStatusArr=false) {
+    var out = socket || serverSocket;
     var stripStatusOut = stripStatusArr || stripStatus;
 
     var stripDict;
-    for (var strip = 0; strip < stripStatusArr.length; strip++) {
-        stripDict = stripStatusArr[strip];
+    for (var strip = 0; strip < stripStatusOut.length; strip++) {
+        stripDict = stripStatusOut[strip];
         if ('pattern' in stripDict) {
             out.emit('color', {
                 strip: strip,
@@ -361,19 +432,6 @@ function broadcastToStrips(stripStatusArr=false, socketOrNull=false) {
                 color: stripDict.color
             });
         }
-    }
-}
-
-function setStripColorHSV(stripIdx=0, [h=0, s=0, v=0], 
-    broadcast=true, socket=false) {
-    var out = socket || serverSocket;
-
-    _writeColorHSV(
-        [ h, s, v ],
-        stripIdx
-    );
-    if (broadcast) {
-        broadcastColorHSV(socket, stripIdx);
     }
 }
 
@@ -594,7 +652,7 @@ function startPattern(id, stripIdx=0) {
             pattern.interval = pattern.function();
         }
     }
-    broadcastToStrips(serverSocket);
+    broadcastAllStrips(serverSocket);
 }
 
 //TODO: FIXME
@@ -606,7 +664,7 @@ function endPattern(dontEmit=false, stripIdx=-1) {
         thePattern = stripStatus[stripIdx].pattern;
     } else {
         // Not running any pattern on this strip
-        console.log("Not running any pattern on this strip");
+        log("Not running any pattern on this strip");
         return;
     }
 
@@ -694,7 +752,7 @@ function _writeLEDs(arr, onestrip) {
 
 //For writing to a non-fadecandy strip
 //rgb = [r,g,b]
-function writeOneColorStrip(rgb) {
+function _writeOneColorStrip(rgb) {
     var red = rgb[0]/255.0;
     var green = rgb[1]/255.0;
     var blue = rgb[2]/255.0;
@@ -733,7 +791,7 @@ function _writeColorHSV([h, s, v], strip) {
     }
 
     if (stripStatus.length > config.numStrips) {
-        writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0].color);
+        _writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0].color);
     }
 
     var toWrite = stripStatusRGB.slice(0,config.numStrips);
@@ -743,35 +801,6 @@ function _writeColorHSV([h, s, v], strip) {
         var stripLEDs = [];
         for (var j=0; j<config.ledsPerStrip; j++) {
             stripLEDs.push(stripStatusRGB[i].color);
-        }
-        leds.push(stripLEDs);
-    }
-
-    return _writeLEDs(leds, false);
-}
-
-//r/g/b out of 255
-function _writeColor(r, g, b, strip) {
-    var hsv = rgbToHsl(r,g,b);
-    if (Array.isArray(strip)) {
-        for (var i=0; i<strip.length; i++) {
-            stripStatus[strip[i]] = {"color": [hsv[0],hsv[1],hsv[2]]};
-        }
-    } else {
-        stripStatus[strip] = {"color": [hsv[0],hsv[1],hsv[2]]};
-    }
-
-    if (stripStatus.length > config.numStrips) {
-        writeOneColorStrip(stripStatus.slice(config.numStrips)[0].color);
-    }
-
-    var toWrite = stripStatus.slice(0,config.numStrips);
-
-    var leds = [];
-    for (var i=0; i<toWrite.length; i++) {
-        var stripLEDs = [];
-        for (var j=0; j<config.ledsPerStrip; j++) {
-            stripLEDs.push(stripStatus[i]);
         }
         leds.push(stripLEDs);
     }

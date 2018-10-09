@@ -599,7 +599,7 @@ class ColorPicker {
     }
 
     setBrightness(brightness) {
-        var brightnessDeadZone = 0.04;
+        var brightnessDeadZone = 0.05;
         if (brightness > (1.0 - brightnessDeadZone)) { brightness = 1.0; }
         else if (brightness < brightnessDeadZone) { brightness = 0.0; }
         this.brightness = brightness;
@@ -677,12 +677,14 @@ class ColorPicker {
             }
         }
         var selectedClass = "button-selected";
+        var me = this;
         patternButton.onclick = function(e) {
-            if (patternButton.classList.contains(selectedClass)) {
+            /*if (patternButton.classList.contains(selectedClass)) {
                 patternButton.classList.remove(selectedClass);
             } else {
                 patternButton.classList.add(selectedClass);
-            }  
+            } */
+            me.chosePreset(patternName); 
         };
         containerElem.appendChild(patternButton);
     }
@@ -719,7 +721,7 @@ class ColorPicker {
         $('#pattern-'+id).addClass('button-selected');
         var config = options || patterns[id].config;
         if (config) {
-            setupConfig(config);
+            this.setupConfig(config);
         }
     }
 
@@ -728,7 +730,7 @@ class ColorPicker {
         if (!reachable) {
             return;
         }
-        var last = deselectPreset();
+        var last = this.deselectPreset();
         if (id !== last) {
             var submission = id.substring("pattern-".length);
             //setupConfig(patterns[submission].options || null);
