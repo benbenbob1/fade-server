@@ -166,7 +166,7 @@ app.post('/api/color', function(req, res) {
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
-    setStripColorHSV(strip, [h, s, v], true, true);
+    setStripColorHSV(strip, [h, s, v], true, false, true);
     res.send({
         "operation": "success",
         "strip": strip,
@@ -208,6 +208,7 @@ app.post('/api/endpoint/echo', function(req, res) {
                         -1, 
                         rgbToHsl(color.r, color.g, color.b), 
                         true,
+                        false,
                         true
                     );
                     output.response.outputSpeech.text = "Color set to "+colorName;
