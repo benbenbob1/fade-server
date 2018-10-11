@@ -166,7 +166,7 @@ app.post('/api/color', function(req, res) {
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
 
-    setStripColorHSV(strip, [h, s, v], true);
+    setStripColorHSV(strip, [h, s, v], true, true);
     res.send({
         "operation": "success",
         "strip": strip,
@@ -207,6 +207,7 @@ app.post('/api/endpoint/echo', function(req, res) {
                     setStripColorHSV(
                         -1, 
                         rgbToHsl(color.r, color.g, color.b), 
+                        true,
                         true
                     );
                     output.response.outputSpeech.text = "Color set to "+colorName;
@@ -393,7 +394,7 @@ function capAndRound(value, min, max) {
 }
 
 function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0], 
-    broadcast=true, socket=false) {
+    broadcast=true, socket=false, instant=false) {
     var out = socket || serverSocket;
 
     //log("setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"], "+
@@ -408,20 +409,28 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
         stripIdx > config.numStrips - 1) {
         
         for (var strip=0; strip<config.numStrips; strip++) {
-            writeAndBroadcast([h,s,v], socket, strip, broadcast);
+            writeAndBroadcast([h,s,v], socket, strip, broadcast, instant);
         }
     } else {
-        writeAndBroadcast([h,s,v], socket, stripIdx, broadcast);
+        writeAndBroadcast([h,s,v], socket, stripIdx, broadcast, instant);
     }
 }
 
-function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false) {
+function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false, 
+    instant=false) {
     //log("writeAndBroadcast([h="+h+",s="+s+",v="+v+"], socket="+socket+
     //    ", stripIdx="+stripIdx+", broadcast="+broadcast+")");
     _writeColorHSV(
         [ h, s, v ],
         stripIdx
     );
+    // Replay event to eliminate fadecandy's auto dithering
+    if (instant) {
+        _writeColorHSV(
+            [ h, s, v ],
+            stripIdx
+        );  
+    }
     if (broadcast) {
         broadcastColorHSV(socket, stripIdx);
     }
@@ -779,7 +788,7 @@ function _writeOneColorStrip(rgb) {
     }
 }
 
-//h/s/v out of 1.0
+//h/s/v out of 1.0, strip must be valid index or array of indices
 function _writeColorHSV([h, s, v], strip) {
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
