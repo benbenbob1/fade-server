@@ -396,6 +396,9 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
     broadcast=true, socket=false) {
     var out = socket || serverSocket;
 
+    //log("setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"], "+
+    //    "broadcast="+broadcast+", socket="+socket+")");
+
     h = roundDecimal(h, ROUND_DECIMALS);
     s = capAndRound(s, 0, 1);
     v = capAndRound(v, 0, 1);
@@ -404,7 +407,7 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
         stripIdx < 0 || 
         stripIdx > config.numStrips - 1) {
         
-        for (var strip=0; strip<config.numStrips.length; strip++) {
+        for (var strip=0; strip<config.numStrips; strip++) {
             writeAndBroadcast([h,s,v], socket, strip, broadcast);
         }
     } else {
@@ -413,6 +416,8 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
 }
 
 function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false) {
+    //log("writeAndBroadcast([h="+h+",s="+s+",v="+v+"], socket="+socket+
+    //    ", stripIdx="+stripIdx+", broadcast="+broadcast+")");
     _writeColorHSV(
         [ h, s, v ],
         stripIdx
