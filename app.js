@@ -203,8 +203,8 @@ app.post('/api/endpoint/echo', function(req, res) {
                 };
                 if (color !== null) {
                     log("Setting color to ["+
-                        color.r + ","
-                        color.g + ","
+                        color.r + "," +
+                        color.g + "," +
                         color.b +
                         "] from echo '"+colorName + "'");
                     setStripColorHSV(
