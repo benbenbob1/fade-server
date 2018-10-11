@@ -178,6 +178,18 @@ app.post('/api/endpoint/echo', function(req, res) {
     var r = req.body.request;
     var color = null;
     var colorName = ''
+
+    var output = {
+        "version": "1.0",
+        "sessionAttributes": {},
+        "response": {
+            "outputSpeech": {
+              "type": "PlainText",
+              "text": ""
+            }
+        }
+    };
+
     if (r && r.type == "IntentRequest") {
         if (r.intent.name == "SetColor") {
             var slots = r.intent.slots;
@@ -190,17 +202,6 @@ app.post('/api/endpoint/echo', function(req, res) {
                 color = getColorFromCommonName(
                     colorName.split(" ").join(""), type
                 );
-
-                var output = {
-                    "version": "1.0",
-                    "sessionAttributes": {},
-                    "response": {
-                        "outputSpeech": {
-                          "type": "PlainText",
-                          "text": ""
-                        }
-                    }
-                };
                 if (color !== null) {
                     log("Setting color to ["+
                         color.r + "," +
