@@ -202,8 +202,11 @@ app.post('/api/endpoint/echo', function(req, res) {
                     }
                 };
                 if (color !== null) {
-                    log("Setting color to "+color.r+" from echo '"+
-                        colorName + "'");
+                    log("Setting color to ["+
+                        color.r + ","
+                        color.g + ","
+                        color.b +
+                        "] from echo '"+colorName + "'");
                     setStripColorHSV(
                         -1, 
                         rgbToHsl(color.r, color.g, color.b), 
@@ -211,9 +214,11 @@ app.post('/api/endpoint/echo', function(req, res) {
                         false,
                         true
                     );
-                    output.response.outputSpeech.text = "Color set to "+colorName;
+                    output.response.outputSpeech.text = "Color set to " + 
+                    colorName;
                 } else {
-                    output.response.outputSpeech.text = "I could not find '"+colorName+"'";
+                    output.response.outputSpeech.text = "I could not find " +
+                    colorName;
                 }
                 res.send(output);
                 return;
@@ -398,8 +403,8 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
     broadcast=true, socket=false, instant=false) {
     var out = socket || serverSocket;
 
-    //log("setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"], "+
-    //    "broadcast="+broadcast+", socket="+socket+")");
+    //log("setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"]"+
+    //    ", broadcast="+broadcast+", socket="+socket+")");
 
     h = roundDecimal(h, ROUND_DECIMALS);
     s = capAndRound(s, 0, 1);
@@ -525,19 +530,45 @@ function getColorFromCommonName(colorName, type) {
             b: parseInt(result[3], 16)
         } : null;
     }
+    var name;
     try {
-        var name = colorNamer(colorName);
-        var col = {};
-        if (!type) {
-            type = "ntc";
-        }
-        col = name[type][0]
-        var rgb = hexToRgb(col.hex);
-        if (rgb) {
-            return rgb
-        }
+        name = colorNamer(colorName);    
     } catch (e) {
-        log("Err: Unknown color '"+colorName+"'")
+        // Couldn't find color
+        return null;
+    }
+    
+    if (name === null) {
+        return null;
+    }
+    var col = {};
+    if (!type) {
+        var minDist = 300;
+        type = "ntc";
+        for (var typ in name) {
+            if (name[typ].length > 0) {
+                var dist = name[typ][0].distance;
+                if (dist === 0) {
+                    type = typ;
+                    break;
+                }
+                if (dist < minDist) {
+                    minDist = dist;
+                    type = typ;
+                }
+            }
+        }
+    }
+
+    if (!name[type] || name[type].length == 0) {
+        return null;
+    }
+
+    col = name[type][0];
+
+    var rgb = hexToRgb(col.hex);
+    if (rgb) {
+        return rgb;
     }
     return null;
 }
