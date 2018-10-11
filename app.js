@@ -177,6 +177,7 @@ app.post('/api/color', function(req, res) {
 app.post('/api/endpoint/echo', function(req, res) {
     var r = req.body.request;
     var color = null;
+    var colorName = ''
     if (r && r.type == "IntentRequest") {
         if (r.intent.name == "SetColor") {
             var slots = r.intent.slots;
@@ -189,29 +190,36 @@ app.post('/api/endpoint/echo', function(req, res) {
                 color = getColorFromCommonName(
                     colorName.split(" ").join(""), type
                 );
+
+                var output = {
+                    "version": "1.0",
+                    "sessionAttributes": {},
+                    "response": {
+                        "outputSpeech": {
+                          "type": "PlainText",
+                          "text": ""
+                        }
+                    }
+                };
+                if (color !== null) {
+                    log("Setting color to "+color.r+" from echo '"+
+                        colorName + "'");
+                    setStripColorHSV(
+                        -1, 
+                        rgbToHsl(color.r, color.g, color.b), 
+                        true
+                    );
+                    output.response.outputSpeech.text = "Color set to "+colorName;
+                } else {
+                    output.response.outputSpeech.text = "I could not find '"+colorName+"'";
+                }
+                res.send(output);
+                return;
             }
         }
     }
-    var output = {
-        "version": "1.0",
-        "sessionAttributes": {},
-        "response": {
-            "outputSpeech": {
-              "type": "PlainText",
-              "text": ""
-            }
-        }
-    };
-    if (color) {
-        setStripColorHSV(
-            -1, 
-            rgbToHsl(color.r, color.g, color.b), 
-            true
-        );
-        output.response.outputSpeech.text = "Color set to '"+colorName+"'";
-    } else {
-        output.response.outputSpeech.text = "I could not find '"+colorName+"'";
-    }
+    
+    output.response.outputSpeech.text = "Sorry, that is not a valid command";
     res.send(output);
 });
 
@@ -509,7 +517,6 @@ function getColorFromCommonName(colorName, type) {
             type = "ntc";
         }
         col = name[type][0]
-        log("Running "+colorName+"["+type+"][0]", col)
         var rgb = hexToRgb(col.hex);
         if (rgb) {
             return rgb
