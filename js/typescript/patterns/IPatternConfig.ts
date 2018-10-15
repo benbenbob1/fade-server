@@ -18,11 +18,14 @@ export interface IPatternConfig {
     rightLabel?: IConfigLabel;
 
     inputType: InputType;
-    inputRange: {
+    inputRange?: {
         min: number,
         max: number
     }
-    valueType: InputValueType;
+    valueType?: InputValueType;
 
-    update(value: number);
+    displayValue: any;
+    defaultValue: any;
+
+    update(value: any);
 }

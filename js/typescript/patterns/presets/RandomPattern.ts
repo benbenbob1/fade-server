@@ -1,17 +1,17 @@
-import { IPatternMultiColorStrip } from "./IPatternMultiColorStrip";
-import { Interval } from "./PatternConfigs";
+import { IPatternMultiColorStrip } from "../IPatternMultiColorStrip";
+import { Interval } from "../PatternConfigs";
 
 export class RandomPattern extends IPatternMultiColorStrip {
-    options = {
-        fade: Interval,
-        interval: __configs.interval_10_500,
-        brightness: {
-            displayValue: 100,
-            defaultValue: 1.0,
-            config: __configs.brightness
-        }
-    }
-    display: {
+    
+    
+    Options = {
+        "speed": new Interval("Speed", 10, 500, 100, 255, (newValue:number) => {
+            this.Variables.speed.value = newValue;
+        }),
+        "brightness": new Interval("Brightness", 10, 100, 100, 1.0)
+    };
+
+    display = {
         title: "Random",
         backgroundDivCSS: {
             "repeat": {
@@ -23,7 +23,8 @@ export class RandomPattern extends IPatternMultiColorStrip {
                 backgroundPosition: "1px 0px"
             }
         }
-    }
+    };
+
     color(brightness: number): number {
         return Math.floor(Math.random() * 255 * brightness);
     }
@@ -40,6 +41,6 @@ export class RandomPattern extends IPatternMultiColorStrip {
             strip.push(this.randColor(this.options.brightness.value));
         }
 
-        this.writeColors(strip, this.options.fade.value);
+        this.writeColors(strip, this.variables.fade.value);
     }
 }

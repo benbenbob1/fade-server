@@ -3,17 +3,19 @@
  * https://benbrown.science
  */
 
-var express           = require('express'),
-    tls               = require('tls'),
+var app               = express(),
+    bodyParser        = require('body-parser');
+    colorNamer        = require('color-namer'),
+    express           = require('express'),
     fs                = require('fs'),
-    app               = express(),
     http              = require('http'),
     path              = require('path'),
-    colorNamer        = require('color-namer'),
+    tls               = require('tls'),
     WebSocketClient   = require('ws'),
-    WebSocketServer   = require('socket.io'),
-    bodyParser        = require('body-parser');
+    WebSocketServer   = require('socket.io');
+    
 var patterns          = require('./js/patterns');
+var smarthome         = require('./js/smarthome');
 var FunctionScheduler = require('./js/scheduler');
 
 var configFile = 'js/config.json';
@@ -265,15 +267,19 @@ if (!serverOptions.key || !config.https) {
     log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
 }
+
+log("Starting function scheduler (t=0)");
+var scheduler = new FunctionScheduler();
+scheduler.timerBegin();
+
+log("Starting smart home hooks");
+var smarthome = new SmartHome(app);
+
 server.listen(port, function() {
     tryNum = 1;
     connectSocket();
     log("Fade-server is listening on port "+port);
 });
-
-log("Starting function scheduler (t=0)");
-var scheduler = new FunctionScheduler();
-scheduler.timerBegin();
 
 // \/ functions
 
