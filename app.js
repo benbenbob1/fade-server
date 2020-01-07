@@ -57,6 +57,7 @@ const ROUND_DECIMALS = 3; // Round signals to this many decimal places
 const SV_MARGIN_CAP = 0.05; // sat & value stick to min/max at this margin 
 
 /*
+stripLeds = [[r,g,b], ...] //Status for all leds
 stripStatus = [
     { //Strip 0
         "color": [
@@ -117,6 +118,7 @@ stripStatus = [
 */
 
 var stripStatus = Array(totalStrips).fill({"color": OFF_COLOR_HSV});
+var stripLeds = Array(totalStrips).fill(0);
 
 app.use(bodyParser.json());
 app.use('/js',
@@ -649,9 +651,18 @@ function rgbToHsl(r, g, b) {
 
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id, stripIdx=0, broadcast=true) {
-    if (id == 'stop' || "pattern" in stripStatus[stripIdx]) {
+    if (id == 'stop') {
         endPattern(false, stripIdx);
         return;
+    } else if ("pattern" in stripStatus[stripIdx]) {
+        var stopOnly = false;
+        if (stripStatus[stripIdx].pattern.id == id) {
+            stopOnly = true;
+        }
+        endPattern(false, stripIdx);
+        if (stopOnly) {
+            return;
+        }
     }
 
     log("Starting: "+id);
@@ -661,56 +672,41 @@ function startPattern(id, stripIdx=0, broadcast=true) {
     stripStatus[stripIdx].pattern = pattern;
     stripStatus[stripIdx].pattern.id = id;
     var options = pattern.options || {};
-    if (pattern != null && options.interval) {
-        if (options.interval.defaultValue > 0) {
-            var me = {};
-            patternStart = function() { //Start pattern
-                if (pattern.start) {
-                    pattern.start.call(me);
-                }
-                if (options) {
-                    var item;
-                    for (var option in options) {
-                        item = options[option];
-                        if (item.defaultValue 
-                            && typeof item.value === "undefined") {
-                            item.value = item.defaultValue;
-                        }
+    var patternInterval = 1000; // 1 tick per second
+    if (pattern != null && patternInterval) {
+        var me = {};
+        patternStart = function() { //Start pattern
+            if (options) {
+                var item;
+                for (var option in options) {
+                    item = options[option];
+                    if (item.defaultValue 
+                        && typeof item.value === "undefined") {
+                        item.value = item.defaultValue;
                     }
                 }
-            };
-            me = {
-                getColors: getColors,
-                writeColorHSV: _writeColorHSV,
-                writeStripLeds: _writeStripLeds,
-                hslToRgb: hslToRgb,
-                options: options,
-                variables: {},
-                stripIdx: stripIdx
-            };
-            var justStarted = true;
-            callPattern = function() {
-                if (!pattern.options.interval && !justStarted) {
-                    //breaking out is hard to do...
-                    return;
-                }
-                justStarted = false;
-                pattern.function.call(me);
-            };
-            //pattern.interval = setTimeout(callPattern, 
-            //    options.interval.value);
-            patternStart();
-            if (options.interval.value)
-            {
-                pattern.PID =
-                    scheduler.addTask(callPattern, options.interval.value);
             }
-        } else if (pattern.options.interval.defaultValue < 0) {
-            pattern.interval = setTimeout(pattern.function, 
-                -options.interval.value);
-        } else if (pattern.options.interval.defaultValue === 0) {
-            pattern.interval = pattern.function();
-        }
+            if (pattern.start) {
+                pattern.start.call(me);
+            }
+        };
+        me = {
+            getColors: getColors,
+            writeColorHSV: _writeColorHSV,
+            writeStripLeds: _writeStripLeds,
+            hslToRgb: hslToRgb,
+            options: options,
+            variables: {},
+            stripIdx: stripIdx
+        };
+        var justStarted = true;
+        callPattern = function() {
+            justStarted = false;
+            pattern.function.call(me);
+        };
+        patternStart();
+        pattern.PID =
+            scheduler.addTask(callPattern, patternInterval);
     }
 
     if (broadcast) {
@@ -816,26 +812,28 @@ function _writeOneColorStrip(rgb) {
 
 //h/s/v out of 1.0, strip must be valid index or array of indices
 function _writeColorHSV([h, s, v], strip) {
+    if (stripLeds[strip] == [h, s, v]) {
+        return;
+    }
+
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
-            stripStatus[strip[i]] = {"color": [h, s, v]};
+            stripLeds[strip[i]] = [h, s, v];
         }
     } else {
         if (strip < 0 || strip > config.numStrips - 1) {
             strip = 0;
         }
-        stripStatus[strip] = {"color": [h, s, v]};
+        stripLeds[strip] = [h, s, v];
     }
 
     var stripStatusRGB = [];
-    for (var s=0; s<stripStatus.length; s++) {
-        stripStatusRGB[s] = {
-            "color": hslToRgb(
-                stripStatus[s].color[0],
-                stripStatus[s].color[1],
-                stripStatus[s].color[2]
-            )
-        };
+    for (var s=0; s<stripLeds.length; s++) {
+        stripStatusRGB[s] = hslToRgb(
+            stripLeds[s][0],
+            stripLeds[s][1],
+            stripLeds[s][2]
+        );
     }
 
     if (stripStatus.length > config.numStrips) {
@@ -848,7 +846,7 @@ function _writeColorHSV([h, s, v], strip) {
     for (var i=0; i<toWrite.length; i++) {
         var stripLEDs = [];
         for (var j=0; j<config.ledsPerStrip; j++) {
-            stripLEDs.push(stripStatusRGB[i].color);
+            stripLEDs.push(stripStatusRGB[i]);
         }
         leds.push(stripLEDs);
     }

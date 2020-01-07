@@ -1,50 +1,4 @@
 var __configs = {
-	interval_10_500: {
-		label: {
-	        left: {
-	            id: "",
-	            text: "Speed"
-	        },
-	        right: {
-	            id: "config-speed-input-percent",
-	            text: "100%"
-	        }
-	    },
-	    input: {
-	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
-	        range: {
-	            min: 10,
-	            max: 500
-	        }
-	    }
-	},
-	interval_10_1000: {
-		label: {
-	        left: {
-	            id: "",
-	            text: "Speed"
-	        },
-	        right: {
-	            id: "config-speed-input-percent",
-	            text: "100%"
-	        }
-	    },
-	    input: {
-	        type: "range",
-	        update: function(value) {
-		    	this.options.interval.value = Math.floor(1/(value/100) * this.options.interval.defaultValue);
-		    },
-		    valueType: "percent",
-	        range: {
-	            min: 10,
-	            max: 1000
-	        }
-	    }
-	},
 	fade: {
 		label: {
             left: {
@@ -152,11 +106,6 @@ var patterns = {
 				defaultValue: true,
 				config: __configs.fade
 			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
 			brightness: {
 				displayValue: 50,
 				defaultValue: 0.5,
@@ -214,11 +163,6 @@ var patterns = {
 				defaultValue: true,
 				config: __configs.fade
 			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
-			},
 			brightness: {
 				displayValue: 100,
 				defaultValue: 1.0,
@@ -273,11 +217,6 @@ var patterns = {
 				displayValue: true,
 				defaultValue: true,
 				config: __configs.randomize
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
 			},
 			brightness: {
 				displayValue: 100,
@@ -385,18 +324,13 @@ var patterns = {
 			this.variables.greenPos = greenPos;
 			this.variables.bluePos = bluePos;
 		}
-	},
+	}/*,
 	'moving-fade': {
 		options: {
 			fade: {
 				displayValue: true,
 				defaultValue: true,
 				config: __configs.fade
-			},
-			interval: {
-				displayValue: 100,
-				defaultValue: 500,
-				config: __configs.interval_10_500
 			},
 			brightness: {
 				displayValue: 50,
@@ -447,7 +381,7 @@ var patterns = {
 				this.writeStripLeds(strip, this.stripIdx);
 			}
 		}
-	}
+	}*/
 };
 
 if (typeof module !== "undefined") {
