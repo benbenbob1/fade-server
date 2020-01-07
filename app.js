@@ -457,7 +457,8 @@ function broadcastAllStrips(socket=false, stripStatusArr=false) {
         if ('pattern' in stripDict) {
             out.emit('color', {
                 strip: strip,
-                pattern: stripDict.pattern
+                pattern: stripDict.pattern.id,
+                config: stripDict.pattern.config
             });
         } else {
             out.emit('color', {
@@ -647,12 +648,10 @@ function rgbToHsl(r, g, b) {
 }
 
 //Starts a pattern, or stops it if given an id of "stop"
-function startPattern(id, stripIdx=0) {
-    if (id == 'stop') {
+function startPattern(id, stripIdx=0, broadcast=true) {
+    if (id == 'stop' || "pattern" in stripStatus[stripIdx]) {
         endPattern(false, stripIdx);
         return;
-    } else if ("pattern" in stripStatus[stripIdx]) {
-        endPattern(false, stripIdx);
     }
 
     log("Starting: "+id);
@@ -660,6 +659,7 @@ function startPattern(id, stripIdx=0) {
     var pattern = patterns[id];
     delete stripStatus[stripIdx].color;
     stripStatus[stripIdx].pattern = pattern;
+    stripStatus[stripIdx].pattern.id = id;
     var options = pattern.options || {};
     if (pattern != null && options.interval) {
         if (options.interval.defaultValue > 0) {
@@ -681,17 +681,16 @@ function startPattern(id, stripIdx=0) {
             };
             me = {
                 getColors: getColors,
-                writeColor: writeColors,
                 writeColorHSV: _writeColorHSV,
-                writeLEDs: _writeLEDs,
+                writeStripLeds: _writeStripLeds,
                 hslToRgb: hslToRgb,
                 options: options,
                 variables: {},
-                stipIdx: stripIdx
+                stripIdx: stripIdx
             };
             var justStarted = true;
             callPattern = function() {
-                if (!pattern.interval && !justStarted) {
+                if (!pattern.options.interval && !justStarted) {
                     //breaking out is hard to do...
                     return;
                 }
@@ -701,8 +700,11 @@ function startPattern(id, stripIdx=0) {
             //pattern.interval = setTimeout(callPattern, 
             //    options.interval.value);
             patternStart();
-            pattern.PID =
-                scheduler.addTask(callPattern, options.inverval.value);
+            if (options.interval.value)
+            {
+                pattern.PID =
+                    scheduler.addTask(callPattern, options.interval.value);
+            }
         } else if (pattern.options.interval.defaultValue < 0) {
             pattern.interval = setTimeout(pattern.function, 
                 -options.interval.value);
@@ -710,12 +712,13 @@ function startPattern(id, stripIdx=0) {
             pattern.interval = pattern.function();
         }
     }
-    broadcastAllStrips(serverSocket);
+
+    if (broadcast) {
+        broadcastAllStrips(serverSocket);
+    }
 }
 
-//TODO: FIXME
 function endPattern(dontEmit=false, stripIdx=-1) {
-    return;
     log("Stopping pattern");
     var thePattern = null;
     if ("pattern" in stripStatus[stripIdx]) {
@@ -726,24 +729,6 @@ function endPattern(dontEmit=false, stripIdx=-1) {
         return;
     }
 
-    /*
-    var patternOnlyOnThisStrip = true;
-    var patternUsage = 0;
-    for (var s=0; s<stripStatus; s++) {
-        if (s != stripIdx && "pattern" in stripStatus[s]) {
-            patternOnlyOnThisStrip = false;
-        }
-    }
-
-
-    if (patternOnlyOnThisStrip) {
-        if (pattern.interval != null) {
-            log("Stopping pattern timer "+patternInterval);
-            clearTimeout(patternInterval);
-        }
-        pattern = null;
-    }*/
-
     if (!isNaN(thePattern.PID)) { //thePattern has PID of type #
         scheduler.removeTask(thePattern.PID);
     }
@@ -751,13 +736,17 @@ function endPattern(dontEmit=false, stripIdx=-1) {
     delete stripStatus[stripIdx].pattern;
     stripStatus[stripIdx].color = OFF_COLOR_HSV;
     if (!dontEmit) {
-        broadcastPattern(serverSocket, stripIdx, 'stop');
+        broadcastAllStrips(serverSocket);
     }
 }
 
+function _writeStripLeds(arr, stripIdx=0) {
+    _writeLEDs(arr, true, stripIdx);
+}
+
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
-//  or array of rgb if onestrip is true
-function _writeLEDs(arr, onestrip) {
+//  or array of rgb if oneStrip is true (will send signal to stripIdx)
+function _writeLEDs(arr, oneStrip, stripIdx=0) {
     //log("Writing leds to "+ arr.length +" strips");
     var packet = new Uint8ClampedArray(
         4 + (config.maxLedsPerStrip * config.numStrips) * 3
@@ -766,7 +755,7 @@ function _writeLEDs(arr, onestrip) {
     if (clientSocket.readyState != 1) { //if socket is not open
         // The server connection isn't open. Nothing to do.
         log("socket err! attempting to reconnect...");
-        _stopPattenTimersOnly(); //Stop pattern from trying to run
+        scheduler.stopTimer(); //Stop pattern from trying to run
         tryNum = 1;
         connectSocket();
         return false;
@@ -783,7 +772,8 @@ function _writeLEDs(arr, onestrip) {
     // Dest position in our packet. Start right after the header.
     var dest = 4;
 
-    if (onestrip) {
+    if (oneStrip) {
+        packet[dest+=config.maxLedsPerStrip*stripIdx*3] = 0;
         for (var led = 0; led < config.maxLedsPerStrip*config.numStrips; led++)
         {
             packet[dest++] = arr[led][0];

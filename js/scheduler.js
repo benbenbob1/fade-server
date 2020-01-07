@@ -78,6 +78,14 @@ class FunctionScheduler {
         //);
     }
 
+    // Stop or pause the timer
+    stopTimer() {
+        if (this.timer != null) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+    }
+
     // Increases curTimeIndex by 1
     // Runs all tasks scheduled for this time index, then reschedules them if
     // applicable.

@@ -178,23 +178,30 @@ var patterns = {
 				}
 			}
 		},
+		start: function() {
+			this.variables.hue = 0;
+		},
 		function: function() {
 			this.variables.hue += 0.05;
 			if (this.variables.hue >= 1.0) {
 				this.variables.hue = 0.0;
 			}
 			this.writeColorHSV(
-				this.variables.hue, 
-				this.options.saturation.value,
-				this.options.brightness.value,
+				[
+					this.variables.hue, 
+					this.options.saturation.value,
+					this.options.brightness.value,
+				],
 				this.stripIdx
 			);
 			//console.log(this.options.saturation.value);
 			if (!this.options.fade.value) {
 				this.writeColorHSV(
-					this.variables.hue, 
-					this.options.saturation.value,
-					this.options.brightness.value,
+					[
+						this.variables.hue, 
+						this.options.saturation.value,
+						this.options.brightness.value,
+					],
 					this.stripIdx
 				);
 			}
@@ -245,17 +252,13 @@ var patterns = {
 			}
 			
 			var strip = [];
-			for (var x=0; x<30; x++) {
+			for (var x=0; x<64; x++) {
 				strip.push(randColor(this.options.brightness.value));
 			}
-			strips.push(strip);
-
-			var allStrips = [];
-			allStrips[this.stripIdx] = strip;
 			
-			this.writeLEDs(allStrips, false);
+			this.writeStripLeds(strip, this.stripIdx);
 			if (!this.options.fade.value) {
-				this.writeLEDs(allStrips, false);
+				this.writeStripLeds(strip, this.stripIdx);
 			}
 		}
 	},
@@ -343,12 +346,9 @@ var patterns = {
 				strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
 			}
 
-			var allStrips = [];
-			allStrips[this.stripIdx] = strip;
-
-			this.writeLEDs(allStrips, false);
+			this.writeStripLeds(strip, this.stripIdx);
 			if (!this.options.fade.value) {
-				this.writeLEDs(allStrips, false);
+				this.writeStripLeds(strip, this.stripIdx);
 			}
 
 			if (redPos === 0) {
@@ -442,11 +442,9 @@ var patterns = {
 				);
 				strip.push(col);
 			}
-			var allStrips = [];
-			allStrips[this.stripIdx] = strip;
-			this.writeLEDs(allStrips);
+			this.writeStripLeds(strip, this.stripIdx);
 			if (!this.options.fade.value) {
-				this.writeLEDs(allStrips);
+				this.writeStripLeds(strip, this.stripIdx);
 			}
 		}
 	}

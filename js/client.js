@@ -157,6 +157,7 @@ function setLocalColor(strip, hsv) {
 
 //Strip is #, Pattern is string
 function setLocalPattern(strip, patternName) {
+    console.log("showing start pattern "+patternName);
     var colorOverlayOpen = false;
     if (colorOverlay != null && colorOverlay.curStrip === strip) {
         colorOverlayOpen = true;
@@ -165,7 +166,7 @@ function setLocalPattern(strip, patternName) {
     if (patternName != 'stop') {
         if (colorOverlayOpen) {
             colorOverlay.deselectPreset();
-            colorOverlay.choosePreset(data.id, data.config);
+            colorOverlay.choosePreset(patternName);
         }
     } else {
         if (colorOverlayOpen) {
@@ -717,7 +718,7 @@ class ColorPicker {
     }
 
     // Called by external preset updating (from server)
-    choosePreset(id, options) {
+    choosePreset(id, options={}) {
         $('#pattern-'+id).addClass('button-selected');
         var config = options || patterns[id].config;
         if (config) {
@@ -732,9 +733,8 @@ class ColorPicker {
         }
         var last = this.deselectPreset();
         if (id !== last) {
-            var submission = id.substring("pattern-".length);
             //setupConfig(patterns[submission].options || null);
-            postPattern(selectedStripIdx, submission);
+            postPattern(selectedStripIdx, id);
         } else {
             removeConfig();
             postPattern(selectedStripIdx, "stop");
