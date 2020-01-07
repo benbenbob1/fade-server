@@ -3,8 +3,7 @@
  * https://benbrown.science
  */
 
-var app               = express(),
-    bodyParser        = require('body-parser');
+var bodyParser        = require('body-parser');
     colorNamer        = require('color-namer'),
     express           = require('express'),
     fs                = require('fs'),
@@ -15,8 +14,9 @@ var app               = express(),
     WebSocketServer   = require('socket.io');
     
 var patterns          = require('./js/patterns');
-var smarthome         = require('./js/smarthome');
 var FunctionScheduler = require('./js/scheduler');
+
+var app = express();
 
 var configFile = 'js/config.json';
 
@@ -271,9 +271,6 @@ if (!serverOptions.key || !config.https) {
 log("Starting function scheduler (t=0)");
 var scheduler = new FunctionScheduler();
 scheduler.timerBegin();
-
-log("Starting smart home hooks");
-var smarthome = new SmartHome(app);
 
 server.listen(port, function() {
     tryNum = 1;
