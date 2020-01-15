@@ -151,6 +151,7 @@ OR
 } 
 
 */
+// TODO: needs error catching
 app.post('/api/color', function(req, res) {
     var r = req.body['r'] || 0;
     var g = req.body['g'] || 0;
@@ -176,6 +177,76 @@ app.post('/api/color', function(req, res) {
         "strip": strip,
         "HSV": [h, s, v].join(", ")
     });
+});
+
+app.post('/api/endpoint/dialogflow', function(req, res) {
+    var r = req.body;
+    var output = {
+        "fulfillmentText": "Sorry, that is not a valid command"
+    };
+
+    if (!r || !('queryResult' in r)) {
+        log("Invalid request sent to /dialogflow: "+r);
+        res.send("Invalid request");
+        return;
+    }
+
+    var queryResult = r.queryResult;
+
+    log("Request from dialogflow. Text: "+queryResult.queryText);
+    log(JSON.stringify(queryResult));
+
+    var color;
+    var colorName = "";
+    var strip = -1;
+    var stripName = "";
+
+    try {
+        if (queryResult.intent.name == ("projects/fade-server/agent/intents/" + 
+            "8631d9c3-ab67-4cde-b878-ec0d89d68bbf")) { // Set color
+            var colorParam = queryResult.parameters.color;
+            var stripParam = queryResult.parameters.strip;
+            if (colorParam) {
+                colorName = colorParam;
+                color = getColorFromCommonName(
+                    colorName.split(" ").join("")
+                );
+                if (!color) {
+                    output.fulfillmentText = "Could not find color "+colorName;
+                }
+            }
+
+            if (stripParam) {
+                config.stripNames.forEach((sName, idx) => {
+                    if (sName.toLowerCase() == stripParam.toLowerCase()) {
+                        stripName = sName;
+                        strip = idx;
+                    }
+                });
+            }
+        }
+    }
+    finally {}
+
+    if (color) {
+        setStripColorHSV(
+            -1,
+            rgbToHsl(color.r, color.g, color.b),
+            true,
+            false,
+            true
+        );
+        var outputText = "Color set to " + colorName;
+
+
+        if (strip != -1) {
+            outputText += " on " + stripName;
+        }
+
+        output.fulfillmentText = outputText;
+    }
+
+    res.send(output);
 });
 
 app.post('/api/endpoint/echo', function(req, res) {
@@ -236,8 +307,8 @@ app.post('/api/endpoint/echo', function(req, res) {
 });
 
 var serverOptions = (function(){
-    var keyFile = "/etc/letsencrypt/live/lights.benbrown.science/privkey.pem";
-    var certFile ="/etc/letsencrypt/live/lights.benbrown.science/fullchain.pem";
+    var keyFile = "/etc/letsencrypt/live/lit.benbrown.science/privkey.pem";
+    var certFile ="/etc/letsencrypt/live/lit.benbrown.science/fullchain.pem";
     try {
         var kContents = fs.readFileSync(keyFile, 'utf8');
         var cContents = fs.readFileSync(certFile, 'utf8');
@@ -354,7 +425,7 @@ function connectSocket() {
         log("Socket connected "+connAddr);
         socket.join('color');
 
-        broadcastAllStrips(socket)
+        broadcastAllStrips(socket);
         
         socket.on('newcolor', function(data) {
             //console.log("rec: ", data);
@@ -444,6 +515,7 @@ function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false,
         );  
     }
     if (broadcast) {
+        stripStatus[stripIdx] = { "color": [h, s, v] }
         broadcastColorHSV(socket, stripIdx);
     }
 }
@@ -528,7 +600,7 @@ function showingPatterns() {
  *                      or ntc (default)
  * @return  {r: 0-255, g: 0-255, b: 0-255} or null
  */
-function getColorFromCommonName(colorName, type) {
+function getColorFromCommonName(colorName, type="ntc") {
     function hexToRgb(hex) {
         var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
@@ -551,7 +623,6 @@ function getColorFromCommonName(colorName, type) {
     var col = {};
     if (!type) {
         var minDist = 300;
-        type = "ntc";
         for (var typ in name) {
             if (name[typ].length > 0) {
                 var dist = name[typ][0].distance;
@@ -716,7 +787,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
 
 function endPattern(dontEmit=false, stripIdx=-1) {
     log("Stopping pattern");
-    var thePattern = null;
+    var thePattern;
     if ("pattern" in stripStatus[stripIdx]) {
         thePattern = stripStatus[stripIdx].pattern;
     } else {
@@ -812,10 +883,6 @@ function _writeOneColorStrip(rgb) {
 
 //h/s/v out of 1.0, strip must be valid index or array of indices
 function _writeColorHSV([h, s, v], strip) {
-    if (stripLeds[strip] == [h, s, v]) {
-        return;
-    }
-
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
             stripLeds[strip[i]] = [h, s, v];
