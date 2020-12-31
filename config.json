@@ -1,0 +1,13 @@
+{
+    "maxLedsPerStrip" : 64,
+    "https"           : true,
+    "port"            : 80,
+    "debugMode"       : true,
+    "strips" : [
+        {
+            "name": "TV",
+            "multiColor": true,
+            "numLeds": 30
+        }
+    ]
+}

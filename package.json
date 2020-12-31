@@ -4,6 +4,7 @@
   "description": "Runs an external-facing server to control a local fadecandy board",
   "author": "Ben Brown : http://benbrown.science",
   "homepage": "http://benbrown.science",
+  "main": "app.js",
   "dependencies": {
     "body-parser": "^1.18.3",
     "color-namer": "^1.1.0",

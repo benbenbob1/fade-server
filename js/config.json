@@ -1,9 +1,0 @@
-{
-    "maxLedsPerStrip"   : 64,
-    "ledsPerStrip"      : 30,
-    "numStrips"         : 1,
-    "numOneColorStrips" : 0,
-    "https"             : true,
-    "port"              : 80,
-    "stripNames"        : ["End table"]
-}

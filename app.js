@@ -3,7 +3,7 @@
  * https://benbrown.science
  */
 
-var bodyParser        = require('body-parser');
+var bodyParser        = require('body-parser'),
     colorNamer        = require('color-namer'),
     express           = require('express'),
     fs                = require('fs'),
@@ -14,25 +14,30 @@ var bodyParser        = require('body-parser');
     WebSocketServer   = require('socket.io');
     
 var patterns          = require('./js/patterns');
+var Helpers           = require('./js/helpers');
 var FunctionScheduler = require('./js/scheduler');
 
 var app = express();
 
-var configFile = 'js/config.json';
-
-var config = {
-    maxLedsPerStrip   : 64,
-    ledsPerStrip      : 30,
-    numStrips         : 2,
-    numOneColorStrips : 1,
-    https             : true,
-    port              : 80
-}
-
+var configFile = './config.json';
 config = JSON.parse(fs.readFileSync(path.resolve(__dirname, configFile)));
 log("Starting with config: \n"+JSON.stringify(config));
 
-var totalStrips = config.numStrips + config.numOneColorStrips;
+var totalMulticolorStrips = 0;
+var hasSingleColorStrip = false;
+config.strips.forEach((strip, idx) => {
+    if (strip.multiColor === true) {
+        totalMulticolorStrips ++;
+    } else {
+        hasSingleColorStrip = true;
+    }
+});
+
+var debug = config.debugMode === true;
+if (debug) {
+    log("Debug mode enabled");
+}
+
 var socketReady = true;
 
 var PIBLASTER_DEV = '/dev/pi-blaster';
@@ -57,7 +62,6 @@ const ROUND_DECIMALS = 3; // Round signals to this many decimal places
 const SV_MARGIN_CAP = 0.05; // sat & value stick to min/max at this margin 
 
 /*
-stripLeds = [[r,g,b], ...] //Status for all leds
 stripStatus = [
     { //Strip 0
         "color": [
@@ -65,7 +69,7 @@ stripStatus = [
             s: 0-1 //percent saturation
             v: 0-1 //percent value (brightness or lightness)
         ]
-        // OR (should not be both)
+        // OR (must not be both)
         "pattern": copy of pattern object (from patterns.js) 
             WITH pid value
     }, ...
@@ -83,7 +87,8 @@ stripStatus = [
         // OR
         color: {
             'strip': 0,
-            'pattern': 'waves'
+            'pattern': 'waves',
+            'config': {...}
         }
 
 
@@ -117,12 +122,14 @@ stripStatus = [
     //TODO: update scheduled task interval (need to add feature to scheduler)
 */
 
-var stripStatus = Array(totalStrips).fill({"color": OFF_COLOR_HSV});
-var stripLeds = Array(totalStrips).fill(0);
+var stripStatus = Array(totalMulticolorStrips).fill({"color": OFF_COLOR_HSV});
+var stripLeds = Array(config.strips.length).fill([0,0,0]); // Status of all strips, in HSL
 
 app.use(bodyParser.json());
 app.use('/js',
     express.static(__dirname + '/js'));
+app.use('/config',
+    express.static(__dirname + '/config.json'));
 app.use('/js/socketio', 
     express.static(path.join(__dirname, 
         '/node_modules/socket.io-client/dist/')));
@@ -166,7 +173,7 @@ app.post('/api/color', function(req, res) {
     endPattern();
 
     if (h === 0 && s === 0 && v === 0) {
-        [h,s,v] = rgbToHsl(r, g, b);
+        [h,s,v] = Helpers.rgbToHsl(r, g, b);
     }
 
     log("Got API call. Setting to hsv ("+h+", "+s+", "+v+").");
@@ -217,8 +224,8 @@ app.post('/api/endpoint/dialogflow', function(req, res) {
             }
 
             if (stripParam) {
-                config.stripNames.forEach((sName, idx) => {
-                    if (sName.toLowerCase() == stripParam.toLowerCase()) {
+                config.strips.forEach((strip, idx) => {
+                    if (strip.name.toLowerCase() == stripParam.toLowerCase()) {
                         stripName = sName;
                         strip = idx;
                     }
@@ -231,7 +238,7 @@ app.post('/api/endpoint/dialogflow', function(req, res) {
     if (color) {
         setStripColorHSV(
             -1,
-            rgbToHsl(color.r, color.g, color.b),
+            Helpers.rgbToHsl(color.r, color.g, color.b),
             true,
             false,
             true
@@ -285,7 +292,7 @@ app.post('/api/endpoint/echo', function(req, res) {
                         "] from echo '"+colorName + "'");
                     setStripColorHSV(
                         -1, 
-                        rgbToHsl(color.r, color.g, color.b), 
+                        Helpers.rgbToHsl(color.r, color.g, color.b), 
                         true,
                         false,
                         true
@@ -369,34 +376,34 @@ function log(text) {
     process.stdout.write(text+"\n");
 }
 
-function arrayOfNumbersUpTo(max) {
-    var output = [];
-    for (var i=0; i<max; i++) {
-        output.push(i);
-    }
-    return output;
-}
-
 function socketErr() {
     clearTimeout(socketTimeout);
     socketTimeout = null;
     socketReady = false;
     if (tryNum > maxTries) {
-        log(
-            "Websocket failed to open after "
-            + maxTries
-            + " attempts. Exiting..."
-        );
-        process.exit();
+        if (debug) {
+            log("Websocket failed to open after " + maxTries 
+                + " attempts but we're in debug mode. Restarting at 0 attempts.");
+            tryNum = 0;
+            connectSocket();
+        } else {
+            log(
+                "Websocket failed to open after "
+                + maxTries
+                + " attempts. Exiting..."
+            );
+            process.exit();
+        }
     }
     else {
         var numSec = (5*Math.pow(2, tryNum));
-        tryNum ++;
         var retryTime = numSec + " seconds";
         if (Math.round(numSec/60) > 1) {
             retryTime = Math.round(numSec/60) + " minutes";
         }
-        log("Websocket failed to open. Retrying in "+retryTime+"...");
+        log("Websocket failed to open. Retrying in " + retryTime
+            + ". [" + tryNum + " / " + maxTries + "] ...");
+        tryNum ++;
         socketTimeout = setTimeout(function() {
             socketReady = true;
             connectSocket();
@@ -408,8 +415,8 @@ function connectSocket() {
     if (!socketReady) {
         return;
     }
+
     var addr = 'ws://127.0.0.1:7890';
-    //var addr = 'ws://rpi.student.rit.edu:7890';
     log("Connecting websocket to "+addr)
     clientSocket = new WebSocketClient(addr);
     clientSocket.on('open', function() {
@@ -480,18 +487,17 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
     broadcast=true, socket=false, instant=false) {
     var out = socket || serverSocket;
 
-    //log("setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"]"+
-    //    ", broadcast="+broadcast+", socket="+socket+")");
-
     h = roundDecimal(h, ROUND_DECIMALS);
     s = capAndRound(s, 0, 1);
     v = capAndRound(v, 0, 1);
 
-    if (!Number.isSafeInteger(stripIdx) || 
-        stripIdx < 0 || 
-        stripIdx > config.numStrips - 1) {
-        
-        for (var strip=0; strip<config.numStrips; strip++) {
+    if (debug) {
+        log("[DEBUG] setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"]"+
+            ", broadcast="+broadcast+", socket="+socket+")");
+    }
+
+    if (!Number.isSafeInteger(stripIdx) || stripIdx < 0) {
+        for (var strip=0; strip<config.strips.length; strip++) {
             writeAndBroadcast([h,s,v], socket, strip, broadcast, instant);
         }
     } else {
@@ -501,8 +507,12 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
 
 function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false, 
     instant=false) {
-    //log("writeAndBroadcast([h="+h+",s="+s+",v="+v+"], socket="+socket+
+    
+    //if (debug) {
+    //    log("[DEBUG] writeAndBroadcast([h="+h+",s="+s+",v="+v+"], socket="+socket+
     //    ", stripIdx="+stripIdx+", broadcast="+broadcast+")");
+    //}
+    
     _writeColorHSV(
         [ h, s, v ],
         stripIdx
@@ -527,19 +537,31 @@ function broadcastAllStrips(socket=false, stripStatusArr=false) {
 
     var stripDict;
     for (var strip = 0; strip < stripStatusOut.length; strip++) {
+        outDict = {};
         stripDict = stripStatusOut[strip];
         if ('pattern' in stripDict) {
-            out.emit('color', {
+            outDict = {
                 strip: strip,
                 pattern: stripDict.pattern.id,
                 config: stripDict.pattern.config
-            });
+            };
         } else {
-            out.emit('color', {
+            outDict = {
                 strip: strip,
                 color: stripDict.color
-            });
+            };
         }
+
+        if (debug) {
+            var dictStr = "{";
+            for (var key in outDict) {
+                dictStr += "\n\t"+key+": "+outDict[key];
+            }
+            dictStr += "\n}";
+            log("[DEBUG] Emitting: "+dictStr);
+        }
+
+        out.emit('color', outDict);
     }
 }
 
@@ -550,13 +572,17 @@ function broadcastColorHSV(socket=false, stripIdx=-1) {
 
     var emit = function(stripIdxToSend) {
         var stripColor = stripStatus[stripIdxToSend].color;
+        if (debug) {
+            log("[DEBUG] Emitting color "+stripColor+" to "+stripIdx)
+        }
+
         out.emit('color', {
             strip: stripIdxToSend,
             color: stripColor
         });
     }
 
-    if (stripIdx >= 0 && stripIdx < totalStrips) {
+    if (stripIdx >= 0 && stripIdx < stripStatus.length) {
         emit(stripIdx);
     } else {
         for (var s=0; s<stripStatus.length; s++) {
@@ -651,75 +677,6 @@ function getColorFromCommonName(colorName, type="ntc") {
     return null;
 }
 
-/**
- * Converts an HSL color value to RGB. Conversion formula
- * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
- * Assumes h, s, and l are contained in the set [0, 1] and
- * returns r, g, and b in the set [0, 255].
- *
- * @param   Number  h       The hue
- * @param   Number  s       The saturation
- * @param   Number  l       The lightness
- * @return  Array           The RGB representation [r,g,b]
- */
-function hslToRgb(h, s, l) {
-    var r, g, b;
-
-    if(s == 0) {
-        r = g = b = l; // achromatic
-    } else {
-        var hue2rgb = function hue2rgb(p, q, t) {
-            if(t < 0) t += 1;
-            if(t > 1) t -= 1;
-            if(t < 1/6) return p + (q - p) * 6 * t;
-            if(t < 1/2) return q;
-            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-            return p;
-        }
-
-        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        var p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
-    }
-
-    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-}
-
-/**
- * https://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
- * Converts an RGB color value to HSL. Conversion formula
- * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
- * Assumes r, g, and b are contained in the set [0, 255] and
- * returns h, s, and l in the set [0, 1].
- *
- * @param   {number}  r       The red color value
- * @param   {number}  g       The green color value
- * @param   {number}  b       The blue color value
- * @return  {Array}           The HSL representation
- */
-function rgbToHsl(r, g, b) {
-    r /= 255, g /= 255, b /= 255;
-    var max = Math.max(r, g, b), min = Math.min(r, g, b);
-    var h, s, l = (max + min) / 2;
-
-    if(max == min) {
-        h = s = 0; // achromatic
-    } else {
-        var d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch(max){
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-        }
-        h /= 6;
-    }
-
-    return [h, s, l];
-}
-
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id, stripIdx=0, broadcast=true) {
     if (id == 'stop') {
@@ -736,7 +693,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
         }
     }
 
-    log("Starting: "+id);
+    log("Starting pattern: "+id);
 
     var pattern = patterns[id];
     delete stripStatus[stripIdx].color;
@@ -751,8 +708,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
                 var item;
                 for (var option in options) {
                     item = options[option];
-                    if (item.defaultValue 
-                        && typeof item.value === "undefined") {
+                    if (item.defaultValue && typeof item.value === "undefined") {
                         item.value = item.defaultValue;
                     }
                 }
@@ -765,7 +721,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
             getColors: getColors,
             writeColorHSV: _writeColorHSV,
             writeStripLeds: _writeStripLeds,
-            hslToRgb: hslToRgb,
+            hslToRgb: Helpers.hslToRgb,
             options: options,
             variables: {},
             stripIdx: stripIdx
@@ -776,8 +732,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
             pattern.function.call(me);
         };
         patternStart();
-        pattern.PID =
-            scheduler.addTask(callPattern, patternInterval);
+        pattern.PID = scheduler.addTask(callPattern, patternInterval);
     }
 
     if (broadcast) {
@@ -814,12 +769,14 @@ function _writeStripLeds(arr, stripIdx=0) {
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
 //  or array of rgb if oneStrip is true (will send signal to stripIdx)
 function _writeLEDs(arr, oneStrip, stripIdx=0) {
-    //log("Writing leds to "+ arr.length +" strips");
     var packet = new Uint8ClampedArray(
-        4 + (config.maxLedsPerStrip * config.numStrips) * 3
+        4 + (config.maxLedsPerStrip * config.strips.length) * 3
     );
 
     if (clientSocket.readyState != 1) { //if socket is not open
+        if (debug) {
+            return false;
+        }
         // The server connection isn't open. Nothing to do.
         log("socket err! attempting to reconnect...");
         scheduler.stopTimer(); //Stop pattern from trying to run
@@ -833,7 +790,7 @@ function _writeLEDs(arr, oneStrip, stripIdx=0) {
         // Don't flood the network, it will just make us laggy.
         // If fcserver is running on the same computer, it should always be able
         // to keep up with the frames we send, so we shouldn't reach this point.
-        return;
+        return false;
     }
 
     // Dest position in our packet. Start right after the header.
@@ -841,7 +798,7 @@ function _writeLEDs(arr, oneStrip, stripIdx=0) {
 
     if (oneStrip) {
         packet[dest+=config.maxLedsPerStrip*stripIdx*3] = 0;
-        for (var led = 0; led < config.maxLedsPerStrip*config.numStrips; led++)
+        for (var led = 0; led < config.maxLedsPerStrip*totalMulticolorStrips; led++)
         {
             packet[dest++] = arr[led][0];
             packet[dest++] = arr[led][1];
@@ -888,35 +845,44 @@ function _writeColorHSV([h, s, v], strip) {
             stripLeds[strip[i]] = [h, s, v];
         }
     } else {
-        if (strip < 0 || strip > config.numStrips - 1) {
+        if (strip < 0 || strip > config.strips.length) {
             strip = 0;
         }
+
         stripLeds[strip] = [h, s, v];
     }
 
     var stripStatusRGB = [];
     for (var s=0; s<stripLeds.length; s++) {
-        stripStatusRGB[s] = hslToRgb(
+        stripStatusRGB[s] = Helpers.hslToRgb(
             stripLeds[s][0],
             stripLeds[s][1],
             stripLeds[s][2]
         );
     }
 
-    if (stripStatus.length > config.numStrips) {
-        _writeOneColorStrip(stripStatusRGB.slice(config.numStrips)[0].color);
-    }
-
-    var toWrite = stripStatusRGB.slice(0,config.numStrips);
+    var wroteOneColorStrip = false;
+    var hasMultiColorStrip = false;
 
     var leds = [];
-    for (var i=0; i<toWrite.length; i++) {
-        var stripLEDs = [];
-        for (var j=0; j<config.ledsPerStrip; j++) {
-            stripLEDs.push(stripStatusRGB[i]);
+    config.strips.forEach((strip, idx) => {
+        if (strip.multiColor === true) {
+            hasMultiColorStrip = true;
+            var stripLEDs = [];
+            for (var j=0; j<strip.numLeds; j++) {
+                stripLEDs.push(stripStatusRGB[i]);
+            }
+            leds.push(stripLEDs);
         }
-        leds.push(stripLEDs);
+        else if (!wroteOneColorStrip) {
+            _writeOneColorStrip(stripStatusRGB[idx]);
+            wroteOneColorStrip = true; // we only need to write this once
+        }
+    });
+
+    if (hasMultiColorStrip) {
+        return _writeLEDs(leds, false);
     }
 
-    return _writeLEDs(leds, false);
+    return true;
 }
