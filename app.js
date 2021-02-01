@@ -10,18 +10,19 @@ var bodyParser        = require('body-parser'),
     http              = require('http'),
     path              = require('path'),
     tls               = require('tls'),
-    WebSocketClient   = require('ws'),
-    WebSocketServer   = require('socket.io');
+    WebSocketClient   = require('ws'), // to fc server
+    WebSocketServer   = require('socket.io'); // to web clients
     
 var patterns          = require('./js/patterns');
 var Helpers           = require('./js/helpers');
+var Config            = require('./js/config');
 var FunctionScheduler = require('./js/scheduler');
 
 var app = express();
 
 var configFile = './config.json';
-config = JSON.parse(fs.readFileSync(path.resolve(__dirname, configFile)));
-log("Starting with config: \n"+JSON.stringify(config));
+config = new Config(fs.readFileSync(path.resolve(__dirname, configFile)));
+log("Starting with config: " + config);
 
 var totalMulticolorStrips = 0;
 var hasSingleColorStrip = false;
@@ -91,6 +92,14 @@ stripStatus = [
             'config': {...}
         }
 
+        debug: {
+            'multiPacket': Uint8ClampedArray
+        }
+        // OR
+        debug: {
+            'singlePacket': [r,g,b]
+        }
+
 
         config: {
             'pattern': 'waves',
@@ -123,7 +132,7 @@ stripStatus = [
 */
 
 var stripStatus = Array(totalMulticolorStrips).fill({"color": OFF_COLOR_HSV});
-var stripLeds = Array(config.strips.length).fill([0,0,0]); // Status of all strips, in HSL
+var multiStripLastLeds = Array(config.strips.length * config.maxLedsPerStrip).fill([0,0,0]);
 
 app.use(bodyParser.json());
 app.use('/js',
@@ -140,6 +149,14 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/page.html');
 });
 
+app.get('/debug', function(req, res) {
+    if (debug) {
+        res.sendFile(__dirname + '/debug.html');
+    } else {
+        res.statusCode = 403; // Forbidden
+        res.send('App must have debug mode enabled');
+    }
+});
 /*
 
 // POST /api/color
@@ -335,7 +352,7 @@ if (!serverOptions.key || !config.https) {
         " Reverting to HTTP.");
     server = http.Server(app);
 } else {
-    //Redirect all incoming HTTP traffic
+    //Redirect all incoming HTTP traffic to HTTPS
     http.createServer(function (req, res) {
         res.writeHead(301, { 
             "Location": "https://" + req.headers['host'] + req.url 
@@ -347,6 +364,8 @@ if (!serverOptions.key || !config.https) {
     log("Using HTTPS/TLS with certs.");
     server = require('https').Server(serverOptions, app);
 }
+
+
 
 log("Starting function scheduler (t=0)");
 var scheduler = new FunctionScheduler();
@@ -360,17 +379,8 @@ server.listen(port, function() {
 
 // \/ functions
 
-function moduleAvailable(name) {
-    try {
-        require.resolve(name);
-        return true;
-    } catch(e){}
-    return false;
-}
-
 var clientSocket, serverSocket;
 var tryNum, socketTimeout = null, maxTries = 7;
-var chosenColors = [];
 
 function log(text) {
     process.stdout.write(text+"\n");
@@ -385,6 +395,7 @@ function socketErr() {
             log("Websocket failed to open after " + maxTries 
                 + " attempts but we're in debug mode. Restarting at 0 attempts.");
             tryNum = 0;
+            socketReady = true;
             connectSocket();
         } else {
             log(
@@ -417,7 +428,7 @@ function connectSocket() {
     }
 
     var addr = 'ws://127.0.0.1:7890';
-    log("Connecting websocket to "+addr)
+    log("Connecting to FC client websocket "+addr)
     clientSocket = new WebSocketClient(addr);
     clientSocket.on('open', function() {
         log("FC websocket opened successfully!");
@@ -425,12 +436,20 @@ function connectSocket() {
 
     clientSocket.on('error', socketErr);
 
-    serverSocket = new WebSocketServer(server);
+    serverSocket = new WebSocketServer.Server({
+        server: server,
+        noServer: false
+    });
+
     serverSocket.on('connection', function(socket) {
         var connAddr = socket.request.connection.remoteAddress;
         socketReady = true;
         log("Socket connected "+connAddr);
         socket.join('color');
+
+        if (debug) {
+            socket.join('debug');
+        }
 
         broadcastAllStrips(socket);
         
@@ -769,14 +788,12 @@ function _writeStripLeds(arr, stripIdx=0) {
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
 //  or array of rgb if oneStrip is true (will send signal to stripIdx)
 function _writeLEDs(arr, oneStrip, stripIdx=0) {
+    var headerLen = 4;
     var packet = new Uint8ClampedArray(
-        4 + (config.maxLedsPerStrip * config.strips.length) * 3
+        headerLen + (config.maxLedsPerStrip * config.strips.length) * 3
     );
 
-    if (clientSocket.readyState != 1) { //if socket is not open
-        if (debug) {
-            return false;
-        }
+    if (clientSocket.readyState != 1 && !debug) { //if socket is not open
         // The server connection isn't open. Nothing to do.
         log("socket err! attempting to reconnect...");
         scheduler.stopTimer(); //Stop pattern from trying to run
@@ -794,32 +811,50 @@ function _writeLEDs(arr, oneStrip, stripIdx=0) {
     }
 
     // Dest position in our packet. Start right after the header.
-    var dest = 4;
+    var dest = headerLen;
+    var ledDest = 0;
 
     if (oneStrip) {
-        packet[dest+=config.maxLedsPerStrip*stripIdx*3] = 0;
-        for (var led = 0; led < config.maxLedsPerStrip*totalMulticolorStrips; led++)
+        //packet[dest+=config.maxLedsPerStrip*stripIdx*3] = 0;
+        ledDest = config.maxLedsPerStrip*stripIdx;
+        for (var led = 0; led < config.strips[stripIdx].numLeds; led++)
         {
-            packet[dest++] = arr[led][0];
+            /*packet[dest++] = arr[led][0];
             packet[dest++] = arr[led][1];
-            packet[dest++] = arr[led][2];
+            packet[dest++] = arr[led][2];*/
+            multiStripLastLeds[ledDest++] = arr;
         }
     } else {
         for (var strip = 0; strip < arr.length; strip++) {
-            //log("Strip ("+strip+") has "+arr[strip].length+" leds");
             for (var led = 0; led < arr[strip].length; led++) {
-                packet[dest++] = arr[strip][led][0];
-                packet[dest++] = arr[strip][led][1];
-                packet[dest++] = arr[strip][led][2];
+                // packet[dest++] = arr[strip][led][0];
+                // packet[dest++] = arr[strip][led][1];
+                // packet[dest++] = arr[strip][led][2];
+                multiStripLastLeds[ledDest++] = arr[strip][led];
             }
+
             var toGo = config.maxLedsPerStrip - led;
-            dest += (toGo*3);
+            //dest += (toGo*3);
+            ledDest += toGo;
         }
     }
-    
-    clientSocket.send(packet.buffer);
 
-    return true;
+    for (var led = 0; led < multiStripLastLeds.length; led++) {
+        packet[dest++] = multiStripLastLeds[led][0];
+        packet[dest++] = multiStripLastLeds[led][1];
+        packet[dest++] = multiStripLastLeds[led][2];
+    }
+
+    if (debug) {
+        serverSocket.emit('debug', { multiPacket: packet.buffer });
+    }
+    
+    if (clientSocket.readyState === 1) { // check one more time
+        clientSocket.send(packet.buffer);
+        return true;
+    }
+
+    return false;
 }
 
 //For writing to a non-fadecandy strip
@@ -836,25 +871,42 @@ function _writeOneColorStrip(rgb) {
         piblaster.write(write(ledPins.green, green));
         piblaster.write(write(ledPins.blue, blue));
     }
+
+    if (debug) {
+        serverSocket.emit('debug', { singlePacket: rgb });
+    }
 }
 
 //h/s/v out of 1.0, strip must be valid index or array of indices
 function _writeColorHSV([h, s, v], strip) {
+    var rgb = Helpers.hslToRgb(h, s, v);
+    var sendColor = (rgb, stripIdx) => {
+        if (config.strips[stripIdx].multiColor === true) {
+            _writeLEDs(rgb, true, stripIdx);
+        } else {
+            _writeOneColorStrip(rgb);
+        }
+    };
+
+
+
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
-            stripLeds[strip[i]] = [h, s, v];
+            //stripLeds[strip[i]] = [h, s, v];
+            sendColor(rgb, strip[i]);
         }
     } else {
         if (strip < 0 || strip > config.strips.length) {
             strip = 0;
         }
 
-        stripLeds[strip] = [h, s, v];
+        sendColor(rgb, strip);
+        //stripLeds[strip] = [h, s, v];
     }
 
-    var stripStatusRGB = [];
+    /*var stripLedsRGB = [];
     for (var s=0; s<stripLeds.length; s++) {
-        stripStatusRGB[s] = Helpers.hslToRgb(
+        stripLedsRGB[s] = Helpers.hslToRgb(
             stripLeds[s][0],
             stripLeds[s][1],
             stripLeds[s][2]
@@ -864,15 +916,15 @@ function _writeColorHSV([h, s, v], strip) {
     var wroteOneColorStrip = false;
     var hasMultiColorStrip = false;
 
-    var leds = [];
+    var packet = [];
     config.strips.forEach((strip, idx) => {
         if (strip.multiColor === true) {
             hasMultiColorStrip = true;
-            var stripLEDs = [];
+            var stripPacket = [];
             for (var j=0; j<strip.numLeds; j++) {
-                stripLEDs.push(stripStatusRGB[i]);
+                stripPacket.push(stripLedsRGB[idx]);
             }
-            leds.push(stripLEDs);
+            packet.push(stripPacket);
         }
         else if (!wroteOneColorStrip) {
             _writeOneColorStrip(stripStatusRGB[idx]);
@@ -881,8 +933,8 @@ function _writeColorHSV([h, s, v], strip) {
     });
 
     if (hasMultiColorStrip) {
-        return _writeLEDs(leds, false);
-    }
+        return _writeLEDs(packet, false);
+    }*/
 
     return true;
 }

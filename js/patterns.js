@@ -266,9 +266,9 @@ var patterns = {
             for (var i=0; i<leds; i++) {
                 strip[i] = [0,0,0];
             }
-            var redPos     = this.variables.redPos  || 0;
-            var greenPos= this.variables.greenPos|| 0;
-            var bluePos = this.variables.bluePos || 0;
+            var redPos   = this.variables.redPos   || 0;
+            var greenPos = this.variables.greenPos || 0;
+            var bluePos  = this.variables.bluePos  || 0;
 
             var offset = 0;
 

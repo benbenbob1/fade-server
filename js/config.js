@@ -1,0 +1,54 @@
+class Strip {
+    name = "";
+    multiColor = true;
+    numLeds = 0;
+}
+
+class Settings {
+    maxLedsPerStrip = 0;
+    https = false;
+    port = 0;
+    debugMode = false;
+    strips = [];
+}
+
+class Config {
+    _configDict = {};
+
+    constructor(configFileContents) {
+        if (!configFileContents || configFileContents.length == 0) {
+            return;
+        }
+
+        this._configDict = JSON.parse(configFileContents);
+
+        for (var setting in this._configDict) {
+            this[setting] = this._configDict[setting];
+        }
+    }
+
+    toString() {
+        var str = '{\n';
+        for (var setting in this._configDict) {
+            if (setting == "_configDict") {
+                continue;
+            }
+
+            str += `  '${setting}': `;
+            str += JSON.stringify(this[setting]);
+            str += ', \n';
+        }
+
+        str += '}';
+
+        return str;
+    }
+}
+
+if(typeof exports == 'undefined'){
+    var exports = this['mymodule'] = {};
+}
+
+if (typeof module !== "undefined") {
+    module.exports = Config;
+}

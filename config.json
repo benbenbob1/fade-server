@@ -7,7 +7,17 @@
         {
             "name": "TV",
             "multiColor": true,
-            "numLeds": 30
+            "numLeds": 32
+        },
+        {
+            "name": "PC",
+            "multiColor": false,
+            "numLeds": 15
+        },
+        {
+            "name": "Window",
+            "multiColor": false,
+            "numLeds": 1
         }
     ]
 }

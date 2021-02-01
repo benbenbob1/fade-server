@@ -1,7 +1,7 @@
 var colorsLocked;
 var buttons = null;
-var loc = document.location.origin;
-var socket = io.connect(loc);
+var loc = document.location.host;
+var socket = io('ws://'+loc, {transports: ['websocket']});
 console.log('Socket connected to', loc);
 var curFade = '';
 var reachable = false;

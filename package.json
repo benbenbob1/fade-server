@@ -12,10 +12,10 @@
     "fs": "0.0.1-security",
     "http": "0.0.0",
     "https": "^1.0.0",
-    "socket.io": "^2.1.1",
-    "socket.io-client": "^2.1.1",
+    "socket.io": "^3.0.4",
+    "socket.io-client": "^3.0.4",
     "tls": "0.0.1",
     "typescript": "^3.0.3",
-    "ws": "^6.1.0"
+    "ws": "^7.4.2"
   }
 }
