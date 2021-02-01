@@ -2,7 +2,7 @@
     "maxLedsPerStrip" : 64,
     "https"           : true,
     "port"            : 80,
-    "debugMode"       : true,
+    "debugMode"       : false,
     "strips" : [
         {
             "name": "TV",
@@ -11,7 +11,7 @@
         },
         {
             "name": "PC",
-            "multiColor": false,
+            "multiColor": true,
             "numLeds": 15
         },
         {

@@ -436,10 +436,8 @@ function connectSocket() {
 
     clientSocket.on('error', socketErr);
 
-    serverSocket = new WebSocketServer.Server({
-        server: server,
-        noServer: false
-    });
+    log("Starting ws server");
+    serverSocket = WebSocketServer(server);
 
     serverSocket.on('connection', function(socket) {
         var connAddr = socket.request.connection.remoteAddress;
