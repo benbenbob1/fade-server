@@ -1,3 +1,11 @@
+body {
+    overflow: visible;
+}
+
+#container {
+    padding: 10px;
+}
+
 .debug-strip-led {
     width: 5px;
     height: 5px;
@@ -7,7 +15,6 @@
     margin-right: 2px;
     border-radius: 50%;
 }
-
 
 #config-table {
     margin: 0 auto;

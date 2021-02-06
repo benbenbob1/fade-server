@@ -3,15 +3,15 @@
  * https://benbrown.science
  */
 
-var bodyParser        = require('body-parser'),
+const bodyParser      = require('body-parser'),
     colorNamer        = require('color-namer'),
     express           = require('express'),
     fs                = require('fs'),
     http              = require('http'),
     path              = require('path'),
     tls               = require('tls'),
-    WebSocketClient   = require('ws'), // to fc server
-    WebSocketServer   = require('socket.io'); // to web clients
+    WebSocket         = require('ws'), // to fc server and clients
+    url               = require('url');
     
 var patterns          = require('./js/patterns');
 var Helpers           = require('./js/helpers');
@@ -106,7 +106,7 @@ stripStatus = [
             CONFIG_ID: NEW_VALUE
         }
 
-    in (to the server):
+    in (to the server): /color
         newcolor: {
             'strip': 1,
             'pattern': 'waves'
@@ -148,6 +148,9 @@ app.use('/assets',
 app.get('/', function(req, res) {
     res.sendFile(__dirname + '/page.html');
 });
+
+var wsColorPath = '/ws_color'; // Path to color websocket
+var wsDebugPath = '/ws_debug';
 
 app.get('/debug', function(req, res) {
     if (debug) {
@@ -365,8 +368,6 @@ if (!serverOptions.key || !config.https) {
     server = require('https').Server(serverOptions, app);
 }
 
-
-
 log("Starting function scheduler (t=0)");
 var scheduler = new FunctionScheduler();
 scheduler.timerBegin();
@@ -379,7 +380,7 @@ server.listen(port, function() {
 
 // \/ functions
 
-var clientSocket, serverSocket;
+var clientSocket, serverSocket, debugServerSocket;
 var tryNum, socketTimeout = null, maxTries = 7;
 
 function log(text) {
@@ -429,7 +430,7 @@ function connectSocket() {
 
     var addr = 'ws://127.0.0.1:7890';
     log("Connecting to FC client websocket "+addr)
-    clientSocket = new WebSocketClient(addr);
+    clientSocket = new WebSocket(addr);
     clientSocket.on('open', function() {
         log("FC websocket opened successfully!");
     });
@@ -437,21 +438,41 @@ function connectSocket() {
     clientSocket.on('error', socketErr);
 
     log("Starting ws server");
-    serverSocket = WebSocketServer(server);
+    serverSocket = new WebSocket.Server({ noServer: true });
+    if (debug) {
+        debugServerSocket = new WebSocket.Server({ noServer: true });
+        debugServerSocket.on('connection', function(socket, req) {
+            var connAddr = req.connection.remoteAddress;
+            log("Debug socket connected "+connAddr);
+        });
+    }
 
-    serverSocket.on('connection', function(socket) {
-        var connAddr = socket.request.connection.remoteAddress;
+    server.on('upgrade', (req, socket, head) => {
+        const pathname = url.parse(req.url).pathname;
+
+        try {
+            if (pathname === wsColorPath) {
+                serverSocket.handleUpgrade(req, socket, head, (ws) => {
+                    serverSocket.emit('connection', ws, req);
+                });
+            } else if (debugServerSocket && pathname === wsDebugPath) {
+                debugServerSocket.handleUpgrade(req, socket, head, (ws) => {
+                    debugServerSocket.emit('connection', ws, req);
+                });
+            }
+        }
+        catch (e) {}
+    });
+
+    serverSocket.on('connection', function(socket, req) {
+        var connAddr = req.connection.remoteAddress;
         socketReady = true;
         log("Socket connected "+connAddr);
-        socket.join('color');
-
-        if (debug) {
-            socket.join('debug');
-        }
 
         broadcastAllStrips(socket);
         
-        socket.on('newcolor', function(data) {
+        socket.on('message', function(dataStr) {
+            var data = JSON.parse(dataStr);
             //console.log("rec: ", data);
             if (!('strip' in data)) {
                 return;
@@ -557,28 +578,60 @@ function broadcastAllStrips(socket=false, stripStatusArr=false) {
         outDict = {};
         stripDict = stripStatusOut[strip];
         if ('pattern' in stripDict) {
-            outDict = {
-                strip: strip,
-                pattern: stripDict.pattern.id,
-                config: stripDict.pattern.config
-            };
+            emitPatternToSocket(out, strip, stripDict.pattern.id, stripDict.pattern.config);
         } else {
-            outDict = {
-                strip: strip,
-                color: stripDict.color
-            };
+            emitColorToSocket(out, strip, stripDict.color);
         }
+    }
+}
 
-        if (debug) {
-            var dictStr = "{";
-            for (var key in outDict) {
-                dictStr += "\n\t"+key+": "+outDict[key];
+function emitColorToSocket(socket, stripIdx, colorRgbArr) {
+    var data = {
+        strip: stripIdx,
+        color: colorRgbArr
+    };
+    _emitDataToSocket(socket, "color", data);
+}
+
+function emitPatternToSocket(socket, stripIdx, patternId, configData) {
+    var data = {
+        strip: stripIdx,
+        pattern: patternId,
+        config: configData
+    };
+    _emitDataToSocket(socket, "color", data);
+}
+
+function emitDebugPacket(data) {
+    _emitRawDataToSocket(debugServerSocket, data);
+}
+
+function _emitDataToSocket(socket, channel, data) {
+    data["channel"] = channel;
+
+    if (debug) {
+        var dictStr = "{";
+        for (var key in data) {
+            dictStr += "\n\t"+key+": "+data[key];
+        }
+        dictStr += "\n}";
+        log("[DEBUG] Emitting: "+dictStr);
+    }
+
+    var strToSend = JSON.stringify(data);
+    _emitRawDataToSocket(socket, strToSend);
+}
+
+function _emitRawDataToSocket(socket, data) {
+    // Broadcast to all clients
+    if (typeof socket.send !== "function") {
+        socket.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(data);
             }
-            dictStr += "\n}";
-            log("[DEBUG] Emitting: "+dictStr);
-        }
-
-        out.emit('color', outDict);
+        });
+    } else {
+        socket.send(data);
     }
 }
 
@@ -588,15 +641,7 @@ function broadcastColorHSV(socket=false, stripIdx=-1) {
     var out = socket || serverSocket;
 
     var emit = function(stripIdxToSend) {
-        var stripColor = stripStatus[stripIdxToSend].color;
-        if (debug) {
-            log("[DEBUG] Emitting color "+stripColor+" to "+stripIdx)
-        }
-
-        out.emit('color', {
-            strip: stripIdxToSend,
-            color: stripColor
-        });
+        emitColorToSocket(out, stripIdxToSend, stripStatus[stripIdxToSend].color);
     }
 
     if (stripIdx >= 0 && stripIdx < stripStatus.length) {
@@ -844,7 +889,7 @@ function _writeLEDs(arr, oneStrip, stripIdx=0) {
     }
 
     if (debug) {
-        serverSocket.emit('debug', { multiPacket: packet.buffer });
+        emitDebugPacket( packet.buffer );
     }
     
     if (clientSocket.readyState === 1) { // check one more time
@@ -871,7 +916,8 @@ function _writeOneColorStrip(rgb) {
     }
 
     if (debug) {
-        serverSocket.emit('debug', { singlePacket: rgb });
+        var rgbBuffer = new Uint8ClampedArray(rgb);
+        emitDebugPacket(rgbBuffer.buffer);
     }
 }
 

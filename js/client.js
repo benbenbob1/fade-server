@@ -1,8 +1,7 @@
 var colorsLocked;
 var buttons = null;
-var loc = document.location.host;
-var socket = io('ws://'+loc, {transports: ['websocket']});
-console.log('Socket connected to', loc);
+var loc = 'ws://'+document.location.host+'/ws_color';
+var socket = new WebSocket(loc);
 var curFade = '';
 var reachable = false;
 
@@ -28,6 +27,49 @@ stripStatus = [
 // For each led strip, first all multicolored, then single-color strips
 var serverCurStatus = []
 
+socket.onmessage = (event) => {
+    var strip = 0;
+    var data = JSON.parse(event.data);
+
+    if (debug) {
+        console.log("[DEBUG] Received: ", data);
+    }
+
+    if ("channel" in data) {
+        if (data.channel != "color") {
+            return;
+        }
+    }
+
+    if ('strip' in data) {
+        strip = data.strip;
+    }
+
+    if ('color' in data) {
+        setLocalColor(strip, [data.color[0], data.color[1], data.color[2]]);
+    } else if ('pattern' in data) {
+        setLocalColor(strip, [0, 1, 0]);
+        setLocalPattern(strip, data.pattern);
+    }
+};
+
+socket.onopen = (event) => {
+    console.log("Connected to "+event.currentTarget.url);
+    reachable = true;
+    disableButtons(false);
+};
+
+socket.onclose = (event) => {
+    reachable = false;
+    disableButtons(true);
+};
+
+socket.onerror = (err) => {
+    reachable = false;
+    disableButtons(true);
+    console.log(err);
+};
+
 $(document).ready(function() {
     colorsLocked = localStorage.getItem('locked');
 
@@ -47,57 +89,17 @@ $(document).ready(function() {
     });
 });
 
-
-socket.on('color', function(data) {
-    var strip = 0;
-
-    if (debug) {
-        console.log("[DEBUG] Received: ", data);
-    }
-
-    if ('strip' in data) {
-        strip = data.strip;
-    }
-
-    if ('color' in data) {
-        setLocalColor(strip, [data.color[0], data.color[1], data.color[2]]);
-    } else if ('pattern' in data) {
-        setLocalColor(strip, [0, 1, 0]);
-        setLocalPattern(strip, data.pattern);
-    }
-});
-
-socket.on('connect', function() {
-    console.log("Connected");
-    reachable = true;
-    disableButtons(false);
-});
-
-socket.on('disconnect', function() {
-    reachable = false;
-    disableButtons(true);
-});
-
-socket.on('error', function(err) {
-    reachable = false;
-    disableButtons(true);
-    console.log(err);
-});
-
 function stripButtonPressed(buttonIdx, stripName="") {
-    var curHSV = [0.0,0.0,0.0];
+    var curHSV = [0.0,1.0,0.0];
     var curPattern;
     if (serverCurStatus.length > buttonIdx) {
-        console.log("SCS", serverCurStatus[buttonIdx]);
         if ("color" in serverCurStatus[buttonIdx]) {
             curHSV = serverCurStatus[buttonIdx]["color"];
         } else if ("pattern" in serverCurStatus[buttonIdx]) {
             curPattern = serverCurStatus[buttonIdx]["pattern"];
         }
     }
-    console.log("Read pattern for strip "+buttonIdx+" as "+curPattern);
-    //console.log("Read color for strip "+index+" as "+curRGB);
-    //console.log(serverCurStatus);
+
     showColorOverlay(true, curHSV, buttonIdx, stripName);
     if (curPattern != null && curPattern != 'stop') {
         colorOverlay.choosePreset(curPattern);
@@ -209,7 +211,7 @@ function postPattern(strip, id) {
 var bufferOpen = true;
 function socketSend(data) {
     if (bufferOpen) {
-        socket.emit('newcolor', data);
+        socket.send(JSON.stringify(data));
         bufferOpen = false;
         setTimeout(function() {
             bufferOpen = true;

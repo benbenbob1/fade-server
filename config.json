@@ -2,7 +2,7 @@
     "maxLedsPerStrip" : 64,
     "https"           : true,
     "port"            : 80,
-    "debugMode"       : false,
+    "debugMode"       : true,
     "strips" : [
         {
             "name": "TV",

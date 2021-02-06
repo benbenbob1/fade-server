@@ -1,5 +1,7 @@
-var loc = document.location.origin;
-var socket = io('ws://'+loc);
+var loc = 'ws://'+document.location.host+'/ws_debug';
+var socket = new WebSocket(loc);
+socket.binaryType = "arraybuffer";
+console.log('Socket connected to', loc);
 
 var config = {};
 var debug = false;
@@ -17,41 +19,47 @@ $(document).ready(function() {
 
     $.getJSON('/config', function(data) {
         config = data;
+        debug = config.debug;
         displayConfig(config);
         setupStrips(config.strips);
     });
 });
 
-socket.on('debug', function(data) {
-    if ('singlePacket' in data) {
-        updateFromSinglePacket(data.singlePacket);
-    } else if ('multiPacket' in data) {
-        updateFromMultiPacket(data.multiPacket);
+socket.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+        if (event.data.byteLength == 3) {
+            updateFromSinglePacket(event.data);
+        } else {
+            updateFromMultiPacket(event.data);
+        }
+    } else {
+        console.log("Received unknown data", event.data);
     }
-});
+};
 
-socket.on('connect', function() {
-    displayConnectionStatus(loc, true);
-});
+socket.onopen = (event) => {
+    displayConnectionStatus(event.currentTarget.url, true);
+};
   
-socket.on('disconnect', function() {
+socket.onclose = (event) => {
     displayConnectionStatus(loc, false);
-});
+};
 
-socket.on('error', function(err) {
-    displayConnectionStatus(loc, false);
+socket.onerror = (err) => {
+    displayConnectionStatus(event.currentTarget.url, false);
     console.log(err);
-});
+};
 
-function displayConnectionStatus(connected=false) {
-    var connectStr = (connected ? 'Connected to' : 'Disconnected from') + ' ' + document.location.host;
+function displayConnectionStatus(location=document.location.host, connected=false) {
+    var connectStr = (connected ? 'Connected to' : 'Disconnected from') + ' ' + location;
     document.getElementById('debug-main-header').innerText = connectStr;
 }
 
 function updateFromSinglePacket(singlePacket) {
+    var packetLeds = new Uint8ClampedArray(singlePacket, 0, 3);
     config.strips.forEach((strip, idx) => {
         if (strip.multiColor !== true) {
-            setStripLedTo(singlePacket, idx, 0);
+            setStripLedTo(packetLeds, idx, 0);
         }
     });
 }
