@@ -1,20 +1,22 @@
 class Strip {
-    name = "";
-    multiColor = true;
-    numLeds = 0;
+    constructor() {
+        this.name = "";
+        this.multiColor = true;
+        this.numLeds = 0;
+    }
 }
 
 class Settings {
-    maxLedsPerStrip = 0;
-    https = false;
-    port = 0;
-    debugMode = false;
-    strips = [];
+    constructor() {
+        this.maxLedsPerStrip = 0;
+        this.https = false;
+        this.port = 0;
+        this.debugMode = false;
+        this.strips = [];
+    }
 }
 
 class Config {
-    _configDict = {};
-
     constructor(configFileContents) {
         if (!configFileContents || configFileContents.length == 0) {
             return;
