@@ -755,8 +755,6 @@ function startPattern(id, stripIdx=0, broadcast=true) {
         }
     }
 
-    log("Starting pattern: "+id);
-
     var pattern = patterns[id];
     delete stripStatus[stripIdx].color;
     stripStatus[stripIdx].pattern = pattern;
@@ -764,22 +762,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
     var options = pattern.options || {};
     var patternInterval = 1000; // 1 tick per second
     if (pattern != null && patternInterval) {
-        var me = {};
-        patternStart = function() { //Start pattern
-            if (options) {
-                var item;
-                for (var option in options) {
-                    item = options[option];
-                    if (item.defaultValue && typeof item.value === "undefined") {
-                        item.value = item.defaultValue;
-                    }
-                }
-            }
-            if (pattern.start) {
-                pattern.start.call(me);
-            }
-        };
-        me = {
+        var patternContext = {
             getColors: getColors,
             writeColorHSV: _writeColorHSV,
             writeStripLeds: _writeStripLeds,
@@ -788,13 +771,22 @@ function startPattern(id, stripIdx=0, broadcast=true) {
             variables: {},
             stripIdx: stripIdx
         };
-        var justStarted = true;
-        callPattern = function() {
-            justStarted = false;
-            pattern.function.call(me);
-        };
-        patternStart();
-        pattern.PID = scheduler.addTask(callPattern, patternInterval);
+
+        if (options) {
+            for (var option in options) {
+                var item = options[option];
+                if (item.defaultValue && typeof item.value === "undefined") {
+                    item.value = item.defaultValue;
+                }
+            }
+        }
+
+        if (pattern.start) {
+            pattern.start.call(patternContext);
+        }
+
+        pattern.PID = scheduler.addTask(pattern.function.call(patternContext), patternInterval);
+        log("Started pattern: "+id+": "+pattern.PID);
     }
 
     if (broadcast) {

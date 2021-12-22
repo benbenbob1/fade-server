@@ -71,11 +71,6 @@ class FunctionScheduler {
         }
 
         this.previousExecutionTime = new Date().getTime();
-        //this.timer = setInterval(
-        //    function(){
-        //        fs.iterateScheduler.call(fs);
-        //    }, this.executionAccuracy, this
-        //);
     }
 
     // Stop or pause the timer
@@ -92,38 +87,24 @@ class FunctionScheduler {
     // ASSUMES tasks are in order!
     iterateScheduler() {
         this.curTimeIndex ++;
-
-        //console.log("At index "+this.curTimeIndex+" I have "+this.tasks.length+" tasks in the queue");
-
         var taskIndicesToRemove = [];
 
         //Find all tasks to execute
         for (var t=this.tasks.length-1; t>=0; t--) {
             var task = this.tasks[t];
 
-            //console.log("At "+this.curTimeIndex+", found task with NEI at "+task.nextExecutionIndex);
             if (task.nextExecutionIndex <= this.curTimeIndex) {
-                //console.log("And I'm gonna run it");
                 task.execute();
-                //taskIndicesToRemove.push(t);
                 this.tasks.splice(t, 1);
                 if (task.repeat == true) {
                     // Add task back if should repeat
                     this.scheduleTask(task, 
                         task.nextExecutionIndex + task.executionFrequency);
                 } else {
-                    //TODO splice out PID
-                    this.PIDs[task.PID] = false;
+                    delete this.PIDs[task.PID];
                 }
             }
         }
-
-        //Remove all ran tasks
-        /*for (var idx=0; idx<taskIndicesToRemove.length; idx++) {
-            // Remove task from queue
-            console.log("Removing "+taskIndicesToRemove[idx]);
-            this.tasks.splice(taskIndicesToRemove[idx], 1);
-        }*/
 
         // Accurate timer
         // Based on https://gist.github.com/manast/1185904
@@ -134,8 +115,6 @@ class FunctionScheduler {
         if (nextTick < 0) {
             nextTick = 0;
         }
-
-        //console.log("Next tick is "+nextTick);
 
         if (this.tasks.length !== 0) {
             var fs = this;
@@ -163,7 +142,7 @@ class FunctionScheduler {
         }
         var execFreqAsIndex = Math.floor(execFreqInMsec/this.executionAccuracy);
 
-        var thisPID = ++this.lastPID;
+        var thisPID = this.lastPID++;
 
         var taskToAdd = new Task(
             thisPID, passedInFunction,
@@ -221,7 +200,6 @@ class FunctionScheduler {
             }
 
             if (!inserted) {
-                //console.log("Not inserted");
                 //It got all the way to the bottom, insert as last item
                 this.tasks.push(task);
             }

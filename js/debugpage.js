@@ -40,7 +40,7 @@ socket.onmessage = (event) => {
 socket.onopen = (event) => {
     displayConnectionStatus(event.currentTarget.url, true);
 };
-  
+
 socket.onclose = (event) => {
     displayConnectionStatus(loc, false);
 };
