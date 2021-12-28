@@ -141,11 +141,18 @@ class Helpers {
                 elemToSet.appendChild(innerElemContainer);
             }
         }
+
+        let playIconId = elemToSet.id + "-play-indicator";
+        if (!document.getElementById(playIconId)) {
+            var playIcon = document.createElement("div");
+            playIcon.id = playIconId;
+            playIcon.className = "play-indicator";
+            elemToSet.appendChild(playIcon);
+        }
     }
 
     static removeElemStyleDict(elem) {
         if (elem.prevBg) {
-            console.log("Setting back to " + elem.prevBg);
             elem.style.cssText = elem.prevBg;
         }
         else {
@@ -153,6 +160,12 @@ class Helpers {
             if (elemInnerContainer) {
                 elemInnerContainer.remove();
             }
+        }
+
+        let playIconId = elem.id + "-play-indicator";
+        let playIcon = document.getElementById(playIconId);
+        if (playIcon) {
+            playIcon.remove();
         }
     }
 }

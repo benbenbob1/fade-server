@@ -39,7 +39,7 @@ if (debug) {
     log("Debug mode enabled");
 }
 
-var socketReady = true;
+var socketReady = false;
 
 var PIBLASTER_DEV = '/dev/pi-blaster';
 var piblaster = null;
@@ -131,7 +131,10 @@ stripStatus = [
     //TODO: update scheduled task interval (need to add feature to scheduler)
 */
 
-var stripStatus = Array(totalMulticolorStrips).fill({"color": OFF_COLOR_HSV});
+const OFF_STATUS = {"color": OFF_COLOR_HSV};
+
+var stripStatus = Array(totalMulticolorStrips).fill(OFF_STATUS);
+var oneColorStripStatus = OFF_STATUS;
 var multiStripLastLeds = Array(config.strips.length * config.maxLedsPerStrip).fill([0,0,0]);
 
 app.use(bodyParser.json());
@@ -378,6 +381,88 @@ server.listen(port, function() {
     log("Fade-server is listening on port "+port);
 });
 
+server.on('upgrade', (req, socket, head) => {
+    const pathname = req.url;
+
+    if (serverSocket && pathname === wsColorPath) {
+        serverSocket.handleUpgrade(req, socket, head, (ws) => {
+            serverSocket.emit('connection', ws, req);
+        });
+    } else if (debugServerSocket && pathname === wsDebugPath) {
+        debugServerSocket.handleUpgrade(req, socket, head, (ws) => {
+            debugServerSocket.emit('connection', ws, req);
+        });
+    } else {
+        socket.destroy();
+    }
+});
+
+
+
+if (serverSocket != null)
+{
+    log("Destructing serverSocket");
+    serverSocket.close();
+    serverSocket = null;
+}
+
+if (debugServerSocket != null)
+{
+    log("Destructing debugServerSocket");
+    debugServerSocket.close();
+    debugServerSocket = null;
+}
+serverSocket = new WebSocket.Server({ noServer: true });
+if (debug) {
+    debugServerSocket = new WebSocket.Server({ noServer: true });
+}
+
+debugServerSocket.on('connection', function(socket, req) {
+    var connAddr = req.socket.remoteAddress;
+    log("Debug socket connected "+connAddr);
+});
+
+serverSocket.on('connection', function(socket, req) {
+    var connAddr = req.socket.remoteAddress;
+    log("Socket connected " + connAddr);
+    
+    // Small delay so we're sure the socket is ready to receive
+    setTimeout(() => broadcastAllStrips(socket), 100);
+    
+    socket.on('message', function(dataStr) {
+        var data = JSON.parse(dataStr);
+        //console.log("rec: ", data);
+        if (!('strip' in data)) {
+            return;
+        }
+        var strip = data.strip || 0;
+
+        if ('color' in data) {
+            setStripColorHSV(
+                strip,
+                data.color,
+                true
+            );
+        } else if ('pattern' in data) {
+            // Start pattern
+            startPattern(
+                data.pattern, //pattern id
+                strip
+            );
+        } else if ('config' in data) {
+            //TODO:FIXCONFIG
+            if (pattern && pattern.options &&
+                pattern.options[data.config]) {
+                var input = pattern.options[data.config].config.input;
+                if (input && typeof input.update !== undefined) {
+                    pattern.options[data.config].displayValue = data.value;
+                    input.update.call(pattern, data.value);
+                }
+            }
+        }
+    });
+});
+
 // \/ functions
 
 var clientSocket, serverSocket, debugServerSocket;
@@ -417,93 +502,59 @@ function socketErr() {
             + ". [" + tryNum + " / " + maxTries + "] ...");
         tryNum ++;
         socketTimeout = setTimeout(function() {
-            socketReady = true;
             connectSocket();
         }, numSec*1000);
     }
 }
 
+function objectToString(obj)
+{
+    var outStr = "";
+    outStr += obj.toString() + "->";
+    var allPublicNames = Object.getOwnPropertyNames(obj);
+    for (let keyIdx in allPublicNames)
+    {
+        let keyName = allPublicNames[keyIdx];
+        let value = obj[keyName];
+        if (Array.isArray(value))
+        {
+            value = value.join(", ");
+        }
+
+        try {
+            outStr += "\n\t" + keyName + ": " + value;
+        }
+        catch (e) {
+            outStr += "\n\t" + keyName + ": ??";
+        }
+    }
+
+    return outStr;
+}
+
 function connectSocket() {
-    if (!socketReady) {
+    if (socketReady)
+    {
+        log("connectSocket called but socket is ready");
         return;
     }
 
     var addr = 'ws://127.0.0.1:7890';
-    log("Connecting to FC client websocket "+addr)
-    clientSocket = new WebSocket(addr);
-    clientSocket.on('open', function() {
-        log("FC websocket opened successfully!");
-    });
+    log("Connecting to FC client websocket "+addr);
 
-    clientSocket.on('error', socketErr);
-
-    log("Starting ws server");
-    serverSocket = new WebSocket.Server({ noServer: true });
-    if (debug) {
-        debugServerSocket = new WebSocket.Server({ noServer: true });
-        debugServerSocket.on('connection', function(socket, req) {
-            var connAddr = req.connection.remoteAddress;
-            log("Debug socket connected "+connAddr);
-        });
+    if (clientSocket != null)
+    {
+        clientSocket.close();
+        clientSocket = null;
     }
 
-    server.on('upgrade', (req, socket, head) => {
-        const pathname = url.parse(req.url).pathname;
-
-        try {
-            if (pathname === wsColorPath) {
-                serverSocket.handleUpgrade(req, socket, head, (ws) => {
-                    serverSocket.emit('connection', ws, req);
-                });
-            } else if (debugServerSocket && pathname === wsDebugPath) {
-                debugServerSocket.handleUpgrade(req, socket, head, (ws) => {
-                    debugServerSocket.emit('connection', ws, req);
-                });
-            }
-        }
-        catch (e) {}
-    });
-
-    serverSocket.on('connection', function(socket, req) {
-        var connAddr = req.connection.remoteAddress;
+    clientSocket = new WebSocket(addr);
+    clientSocket.on('open', function() {
         socketReady = true;
-        log("Socket connected "+connAddr);
-
-        broadcastAllStrips(socket);
-        
-        socket.on('message', function(dataStr) {
-            var data = JSON.parse(dataStr);
-            //console.log("rec: ", data);
-            if (!('strip' in data)) {
-                return;
-            }
-            var strip = data.strip || 0;
-
-            if ('color' in data) {
-                setStripColorHSV(
-                    strip,
-                    data.color,
-                    true
-                );
-            } else if ('pattern' in data) {
-                // Start pattern
-                startPattern(
-                    data.pattern, //pattern id
-                    strip
-                );
-            } else if ('config' in data) {
-                //TODO:FIXCONFIG
-                if (pattern && pattern.options &&
-                    pattern.options[data.config]) {
-                    var input = pattern.options[data.config].config.input;
-                    if (input && typeof input.update !== undefined) {
-                        pattern.options[data.config].displayValue = data.value;
-                        input.update.call(pattern, data.value);
-                    }
-                }
-            }
-        });
+        log("FC websocket opened successfully!");
     });
+    
+    clientSocket.on('error', socketErr);
 }
 
 function roundDecimal(value) {
@@ -521,6 +572,20 @@ function capAndRound(value, min, max) {
     return out;
 }
 
+function isOneStrip(stripIdx=-1)
+{
+    if (stripStatus.length <= stripIdx)
+    {
+        return true;
+    }
+
+    if (config.strips[stripIdx].multiColor !== true) {
+        return true;
+    }
+    
+    return false;
+}
+
 function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0], 
     broadcast=true, socket=false, instant=false) {
     var out = socket || serverSocket;
@@ -529,17 +594,30 @@ function setStripColorHSV(stripIdx=-1, [h=0, s=0, v=0],
     s = capAndRound(s, 0, 1);
     v = capAndRound(v, 0, 1);
 
-    if (debug) {
-        log("[DEBUG] setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"]"+
-            ", broadcast="+broadcast+", socket="+socket+")");
-    }
+    // if (debug) {
+    //     log("[DEBUG] setStripColorHSV(stripIdx="+stripIdx+", [h="+h+", s="+s+", v="+v+"]"+
+    //         ", broadcast="+broadcast+", socket="+socket+")");
+    // }
+
+    let writeTheColor = (aStripIdx) => {
+        let stripDict = getStripStatus(stripIdx);
+        if (stripDict == null) {
+            return;
+        }
+
+        if ("pattern" in stripDict) {
+            endPattern(true, aStripIdx);
+        }
+
+        writeAndBroadcast([h,s,v], socket, aStripIdx, broadcast, instant);
+    };
 
     if (!Number.isSafeInteger(stripIdx) || stripIdx < 0) {
         for (var strip=0; strip<config.strips.length; strip++) {
-            writeAndBroadcast([h,s,v], socket, strip, broadcast, instant);
+            writeTheColor(strip);
         }
     } else {
-        writeAndBroadcast([h,s,v], socket, stripIdx, broadcast, instant);
+        writeTheColor(stripIdx);
     }
 }
 
@@ -562,27 +640,62 @@ function writeAndBroadcast([h,s,v], socket=false, stripIdx=0, broadcast=false,
             stripIdx
         );  
     }
+    
     if (broadcast) {
-        stripStatus[stripIdx] = { "color": [h, s, v] }
+        var status = { "color": [h, s, v] };
+        setStripStatus(stripIdx, status);
+
         broadcastColorHSV(socket, stripIdx);
     }
 }
 
-//Broadcast all info about all strips to one socket (or every socket if false)
-function broadcastAllStrips(socket=false, stripStatusArr=false) {
-    var out = socket || serverSocket;
-    var stripStatusOut = stripStatusArr || stripStatus;
+function getStripStatus(stripIdx=0) {
+    if (isOneStrip(stripIdx)) {
+        return oneColorStripStatus;
+    }
 
-    var stripDict;
-    for (var strip = 0; strip < stripStatusOut.length; strip++) {
+    if (stripIdx >= 0 && stripIdx < stripStatus.length) { // If it's equal here then isOneStrip failed to detect
+        return stripStatus[stripIdx];
+    }
+
+    return null;
+}
+
+function setStripStatus(stripIdx=0, newStatusDict) {
+    if (isOneStrip(stripIdx)) {
+        oneColorStripStatus = newStatusDict;
+    }
+
+    if (stripIdx >= 0 && stripIdx < stripStatus.length) { // If it's equal here then isOneStrip failed to detect
+        stripStatus[stripIdx] = newStatusDict;
+    }
+}
+
+//Broadcast all info about all strips to one socket (or every socket if false)
+function broadcastAllStrips(socket=false) {
+    var out = socket || serverSocket;
+
+    for (var strip = 0; strip < stripStatus.length; strip++) {
         outDict = {};
-        stripDict = stripStatusOut[strip];
+        var stripDict = getStripStatus(strip);
         if ('pattern' in stripDict) {
             emitPatternToSocket(out, strip, stripDict.pattern.id, stripDict.pattern.config);
         } else {
             emitColorToSocket(out, strip, stripDict.color);
         }
     }
+
+    if (hasSingleColorStrip)
+    {
+        if ('pattern' in oneColorStripStatus)
+        {
+            emitPatternToSocket(out, strip, oneColorStripStatus.pattern.id, oneColorStripStatus.pattern.config);
+        }
+        else {
+            emitColorToSocket(out, stripStatus.length, oneColorStripStatus.color);
+        }
+    }
+
 }
 
 function emitColorToSocket(socket, stripIdx, colorRgbArr) {
@@ -624,14 +737,18 @@ function _emitDataToSocket(socket, channel, data) {
 
 function _emitRawDataToSocket(socket, data) {
     // Broadcast to all clients
-    if (typeof socket.send !== "function") {
-        socket.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(data);
-            }
-        });
-    } else {
-        socket.send(data);
+    try {
+        if (typeof socket.send !== "function") {
+            socket.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(data);
+                }
+            });
+        } else {
+            socket.send(data);
+        }
+    } catch (e) {
+        log("Error sending to socket: " + e);
     }
 }
 
@@ -641,13 +758,17 @@ function broadcastColorHSV(socket=false, stripIdx=-1) {
     var out = socket || serverSocket;
 
     var emit = function(stripIdxToSend) {
-        emitColorToSocket(out, stripIdxToSend, stripStatus[stripIdxToSend].color);
+        try {
+            emitColorToSocket(out, stripIdxToSend, getStripStatus(stripIdxToSend).color);
+        } catch (e) {
+            log("broadcastColorHSV, emit | Could not emitColorToSocket: " + e);
+        }
     }
 
-    if (stripIdx >= 0 && stripIdx < stripStatus.length) {
+    if (stripIdx >= 0 && stripIdx <= stripStatus.length) {
         emit(stripIdx);
     } else {
-        for (var s=0; s<stripStatus.length; s++) {
+        for (var s=0; s<=stripStatus.length; s++) {
             emit(s);
         }
     }
@@ -663,17 +784,6 @@ function getColors() {
         ]);
     }
     return colorArr;
-}
-
-//Returns true if any patterns are currently active
-function showingPatterns() {
-    for (var strip=0; strip<stripStatus.length; strip++) {
-        if ('pattern' in stripStatus[strip]) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 //{r: 0-255, g: 0-255, b: 0-255} or null
@@ -741,12 +851,16 @@ function getColorFromCommonName(colorName, type="ntc") {
 
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id, stripIdx=0, broadcast=true) {
+    const stripDict = getStripStatus(stripIdx);
+    let newStripDict = {};
+
     if (id == 'stop') {
+        log("startPattern called with stop id on strip "+stripIdx);
         endPattern(false, stripIdx);
         return;
-    } else if ("pattern" in stripStatus[stripIdx]) {
-        var stopOnly = false;
-        if (stripStatus[stripIdx].pattern.id == id) {
+    } else if ("pattern" in stripDict) {
+        let stopOnly = false;
+        if (stripDict.pattern.id == id) {
             stopOnly = true;
         }
         endPattern(false, stripIdx);
@@ -755,39 +869,43 @@ function startPattern(id, stripIdx=0, broadcast=true) {
         }
     }
 
-    var pattern = patterns[id];
-    delete stripStatus[stripIdx].color;
-    stripStatus[stripIdx].pattern = pattern;
-    stripStatus[stripIdx].pattern.id = id;
-    var options = pattern.options || {};
-    var patternInterval = 1000; // 1 tick per second
-    if (pattern != null && patternInterval) {
+    let patternObj = patterns[id];
+    let runningPatternInfo = { "id": id };
+    let patternInterval = 1000; // 1 tick per second
+    if (patternObj != null && patternInterval) {
         var patternContext = {
             getColors: getColors,
             writeColorHSV: _writeColorHSV,
             writeStripLeds: _writeStripLeds,
             hslToRgb: Helpers.hslToRgb,
-            options: options,
+            options: JSON.parse(JSON.stringify(patternObj.options)), // <- this is a HACK to deep copy. TODO: fix this
             variables: {},
-            stripIdx: stripIdx
+            stripIdx: stripIdx,
+            numLeds: isOneStrip(stripIdx) ? 1 : config.strips[stripIdx].numLeds
         };
 
-        if (options) {
-            for (var option in options) {
-                var item = options[option];
+
+        if (patternObj.options) {
+            for (var option in patternObj.options) {
+                var item = patternObj.options[option];
                 if (item.defaultValue && typeof item.value === "undefined") {
-                    item.value = item.defaultValue;
+                    patternContext.options[option].value = item.defaultValue;
                 }
             }
         }
 
-        if (pattern.start) {
-            pattern.start.call(patternContext);
+        if (patternObj.start) {
+            patternObj.start.call(patternContext);
         }
 
-        pattern.PID = scheduler.addTask(pattern.function.call(patternContext), patternInterval);
-        log("Started pattern: "+id+": "+pattern.PID);
+        let newPID = scheduler.addTask(patternObj.function, patternInterval, patternContext);
+        runningPatternInfo.PID = newPID;
+        newStripDict.pattern = runningPatternInfo;
+        
+        log("Started pattern: "+id+" on strip "+stripIdx+": "+objectToString(newStripDict.pattern));
     }
+
+    setStripStatus(stripIdx, newStripDict);
 
     if (broadcast) {
         broadcastAllStrips(serverSocket);
@@ -795,10 +913,13 @@ function startPattern(id, stripIdx=0, broadcast=true) {
 }
 
 function endPattern(dontEmit=false, stripIdx=-1) {
-    log("Stopping pattern");
+    let stripDict = getStripStatus(stripIdx);
+
+    log("Stopping pattern on strip " + stripIdx);
     var thePattern;
-    if ("pattern" in stripStatus[stripIdx]) {
-        thePattern = stripStatus[stripIdx].pattern;
+
+    if ("pattern" in stripDict) {
+        thePattern = stripDict.pattern;
     } else {
         // Not running any pattern on this strip
         log("Not running any pattern on this strip");
@@ -809,26 +930,30 @@ function endPattern(dontEmit=false, stripIdx=-1) {
         scheduler.removeTask(thePattern.PID);
     }
 
-    delete stripStatus[stripIdx].pattern;
-    stripStatus[stripIdx].color = OFF_COLOR_HSV;
+    delete stripDict.pattern;
+    stripDict.color = OFF_COLOR_HSV;
     if (!dontEmit) {
         broadcastAllStrips(serverSocket);
     }
 }
 
+// Write an array of rgb colors to a multi-color strip
 function _writeStripLeds(arr, stripIdx=0) {
-    _writeLEDs(arr, true, stripIdx);
+    // Write only to stripIdx slice with arr of [[r,g,b], [r,g,b], ...]
+    _writeLEDs(arr, stripIdx, false, true);
 }
 
 //[[[r,g,b], [r,g,b], ...], [[r,g,b], [r,g,b], ...]]
-//  or array of rgb if oneStrip is true (will send signal to stripIdx)
-function _writeLEDs(arr, oneStrip, stripIdx=0) {
+//  or array of [r,g,b] if oneColorToStrip is true
+//  or array of [[r,g,b], [r,g,b], ...] if rgbArrToStrip is true
+function _writeLEDs(arr, stripIdx=0, oneColorToStrip=false, rgbArrToStrip=false) {
+    //log("_writeLEDs: [" + arr+ "], oCTS: " + oneColorToStrip + ", rATS: "+rgbArrToStrip);
     var headerLen = 4;
     var packet = new Uint8ClampedArray(
         headerLen + (config.maxLedsPerStrip * config.strips.length) * 3
     );
 
-    if (clientSocket.readyState != 1 && !debug) { //if socket is not open
+    if (clientSocket.readyState != 1 && !debug) { // if socket is not open
         // The server connection isn't open. Nothing to do.
         log("socket err! attempting to reconnect...");
         scheduler.stopTimer(); //Stop pattern from trying to run
@@ -846,35 +971,36 @@ function _writeLEDs(arr, oneStrip, stripIdx=0) {
     }
 
     // Dest position in our packet. Start right after the header.
-    var dest = headerLen;
-    var ledDest = 0;
+    let dest = headerLen;
+    let ledDest = 0;
 
-    if (oneStrip) {
-        //packet[dest+=config.maxLedsPerStrip*stripIdx*3] = 0;
+    if (oneColorToStrip || rgbArrToStrip) {
         ledDest = config.maxLedsPerStrip*stripIdx;
-        for (var led = 0; led < config.strips[stripIdx].numLeds; led++)
-        {
-            /*packet[dest++] = arr[led][0];
-            packet[dest++] = arr[led][1];
-            packet[dest++] = arr[led][2];*/
-            multiStripLastLeds[ledDest++] = arr;
+        if (oneColorToStrip) {
+            let channel = 0;
+            for (let led = 0; led < config.strips[stripIdx].numLeds; led++)
+            {
+                multiStripLastLeds[ledDest++] = arr;
+            }
+        } else if (rgbArrToStrip) {
+            for (let led = 0; led < config.strips[stripIdx].numLeds && led < arr.length; led++)
+            {
+                multiStripLastLeds[ledDest++] = arr[led];
+            }
         }
+        
     } else {
-        for (var strip = 0; strip < arr.length; strip++) {
-            for (var led = 0; led < arr[strip].length; led++) {
-                // packet[dest++] = arr[strip][led][0];
-                // packet[dest++] = arr[strip][led][1];
-                // packet[dest++] = arr[strip][led][2];
+        for (let strip = 0; strip < arr.length; strip++) {
+            for (let led = 0; led < arr[strip].length; led++) {
                 multiStripLastLeds[ledDest++] = arr[strip][led];
             }
 
-            var toGo = config.maxLedsPerStrip - led;
-            //dest += (toGo*3);
+            let toGo = config.maxLedsPerStrip - led;
             ledDest += toGo;
         }
     }
 
-    for (var led = 0; led < multiStripLastLeds.length; led++) {
+    for (let led = 0; led < multiStripLastLeds.length; led++) {
         packet[dest++] = multiStripLastLeds[led][0];
         packet[dest++] = multiStripLastLeds[led][1];
         packet[dest++] = multiStripLastLeds[led][2];
@@ -917,14 +1043,12 @@ function _writeOneColorStrip(rgb) {
 function _writeColorHSV([h, s, v], strip) {
     var rgb = Helpers.hslToRgb(h, s, v);
     var sendColor = (rgb, stripIdx) => {
-        if (config.strips[stripIdx].multiColor === true) {
-            _writeLEDs(rgb, true, stripIdx);
-        } else {
+        if (isOneStrip(strip)) {
             _writeOneColorStrip(rgb);
+        } else {
+            _writeLEDs(rgb, stripIdx, true, false);
         }
     };
-
-
 
     if (Array.isArray(strip)) {
         for (var i=0; i<strip.length; i++) {
@@ -937,40 +1061,7 @@ function _writeColorHSV([h, s, v], strip) {
         }
 
         sendColor(rgb, strip);
-        //stripLeds[strip] = [h, s, v];
     }
-
-    /*var stripLedsRGB = [];
-    for (var s=0; s<stripLeds.length; s++) {
-        stripLedsRGB[s] = Helpers.hslToRgb(
-            stripLeds[s][0],
-            stripLeds[s][1],
-            stripLeds[s][2]
-        );
-    }
-
-    var wroteOneColorStrip = false;
-    var hasMultiColorStrip = false;
-
-    var packet = [];
-    config.strips.forEach((strip, idx) => {
-        if (strip.multiColor === true) {
-            hasMultiColorStrip = true;
-            var stripPacket = [];
-            for (var j=0; j<strip.numLeds; j++) {
-                stripPacket.push(stripLedsRGB[idx]);
-            }
-            packet.push(stripPacket);
-        }
-        else if (!wroteOneColorStrip) {
-            _writeOneColorStrip(stripStatusRGB[idx]);
-            wroteOneColorStrip = true; // we only need to write this once
-        }
-    });
-
-    if (hasMultiColorStrip) {
-        return _writeLEDs(packet, false);
-    }*/
 
     return true;
 }

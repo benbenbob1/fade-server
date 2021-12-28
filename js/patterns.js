@@ -128,7 +128,7 @@ var patterns = {
             }
         },
         start: function() {
-            this.variables.hue = 0;
+            this.variables.hue = 0.0;
         },
         function: function() {
             this.variables.hue += 0.05;
@@ -262,7 +262,7 @@ var patterns = {
         },
         function: function() {
             var strip = []; //one strip of 60 leds
-            var leds = 64;
+            var leds = this.numLeds;
             for (var i=0; i<leds; i++) {
                 strip[i] = [0,0,0];
             }
@@ -305,7 +305,7 @@ var patterns = {
                 greenPos += Math.random()*6;
                 bluePos += Math.random()*2;
             } else {
-                redPos     += 10;
+                redPos  += 10;
                 greenPos+= 5;
                 bluePos += 1;
             }
@@ -324,7 +324,7 @@ var patterns = {
             this.variables.greenPos = greenPos;
             this.variables.bluePos = bluePos;
         }
-    }/*,
+    },
     'moving-fade': {
         options: {
             fade: {
@@ -358,14 +358,17 @@ var patterns = {
                 }
             }
         },
+        start: function() {
+            this.variables.hue = 0.0;
+        },
         function: function() {
             this.variables.hue += 0.1;
             if (this.variables.hue > 1.0) {
                 this.variables.hue -= 1.0;
             }
 
-            var strip = [];
-            for (var led=0; led<30; led++) {
+            var strip = Array(this.numLeds);
+            for (var led=0; led<this.numLeds; led++) {
                 var hue = this.variables.hue+((led/30));
                 if (hue > 1.0) {
                     hue -= 1.0;
@@ -374,14 +377,15 @@ var patterns = {
                     hue, this.options.saturation.value, 
                     this.options.brightness.value
                 );
-                strip.push(col);
+                strip[led] = col;
             }
+            
             this.writeStripLeds(strip, this.stripIdx);
             if (!this.options.fade.value) {
                 this.writeStripLeds(strip, this.stripIdx);
             }
         }
-    }*/
+    }
 };
 
 if(typeof exports == 'undefined'){

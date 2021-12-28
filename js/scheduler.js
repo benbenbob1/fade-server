@@ -2,16 +2,60 @@
 
 class Task {
     //executionFrequency is an index
-    constructor(PID, functionToExecute, executionFrequency, shouldRepeat) {
+    constructor(PID, functionToExecute, executionFrequency, shouldRepeat, context=null) {
         this.toExecute = functionToExecute;
         this.repeat = shouldRepeat;
         this.executionFrequency = executionFrequency;
         this.nextExecutionIndex = -1;
         this.PID = PID;
+
+        if (context !== null) {
+            this.context = context;
+        }
     }
 
     execute() {
-        this.toExecute();
+        if (this.context) {
+            this.toExecute.call(this.context);
+        } else {
+            this.toExecute();
+        }
+    }
+}
+
+// FIFO
+class Queue {
+    constructor() {
+        this.elements = [];
+    }
+
+    // Inserts item at top of queue (end of array)
+    push(element) {
+        this.elements.push(element);
+    }
+
+    // Adds item at bottom of queue (last item)
+    pushLast(element) {
+        this.elements.unshift(element);
+    }
+
+    // Returns item at top of queue (lowest on array)
+    pop(elementIdx = 0) {
+        if (elementIdx !== 0)
+        {
+            return this.elements.splice(-elementIdx, 1);
+        }
+
+        return this.elements.pop();
+    }
+
+    isEmpty() {
+        return this.elements.length == 0;
+    }
+
+    // Peek top idx'th item
+    peek(idx = 0) {
+        return this.isEmpty() ? null : this.elements[this.elements.length - idx - 1];
     }
 }
 
@@ -24,7 +68,7 @@ class FunctionScheduler {
     constructor() {
         //Initiate clock
         // Stores each Task in priority queue, 
-        // FIFO in order of next to execute
+        // FIFO in order of next to execute (top one is next to execute)
 
         // Every executionAccuracy miliseconds, the executeNext function
         // is called. This checks the item at the end of the queue.
@@ -47,7 +91,7 @@ class FunctionScheduler {
 
         this.executionAccuracy = 200; //msec
 
-        this.tasks = [];
+        this.tasks = new Queue();
 
         this.previousExecutionTime = -1;
 
@@ -58,7 +102,6 @@ class FunctionScheduler {
         */
         this.PIDs = {};
         this.lastPID = -1;
-
     }
 
     // (Re)start the internal timer
@@ -87,22 +130,35 @@ class FunctionScheduler {
     // ASSUMES tasks are in order!
     iterateScheduler() {
         this.curTimeIndex ++;
-        var taskIndicesToRemove = [];
 
-        //Find all tasks to execute
-        for (var t=this.tasks.length-1; t>=0; t--) {
-            var task = this.tasks[t];
+        // Find next tasks to execute
+        if (this.tasks.isEmpty()) {
+            return;
+        }
 
-            if (task.nextExecutionIndex <= this.curTimeIndex) {
+        let howDeep = 0;
+        while (howDeep < this.tasks.elements.length) {
+            let nextTask = this.tasks.peek();
+            if (nextTask.nextExecutionIndex <= this.curTimeIndex) {
+                let task = this.tasks.pop();
                 task.execute();
-                this.tasks.splice(t, 1);
                 if (task.repeat == true) {
                     // Add task back if should repeat
+                    let nextTaskExecutionIndex = task.nextExecutionIndex + task.executionFrequency;
+                    if (nextTaskExecutionIndex < this.curTimeIndex) {
+                        // Too soon or we missed the last execution by a lot
+                        nextTaskExecutionIndex = this.curTimeIndex + task.executionFrequency;
+                    }
+
                     this.scheduleTask(task, 
-                        task.nextExecutionIndex + task.executionFrequency);
+                        this.curTimeIndex + task.executionFrequency);
                 } else {
                     delete this.PIDs[task.PID];
                 }
+
+                howDeep ++;
+            } else {
+                break;
             }
         }
 
@@ -113,10 +169,10 @@ class FunctionScheduler {
         var nextTick = this.executionAccuracy - 
             (curTick - this.previousExecutionTime);
         if (nextTick < 0) {
-            nextTick = 0;
+            nextTick = this.executionAccuracy;
         }
 
-        if (this.tasks.length !== 0) {
+        if (!this.tasks.isEmpty()) {
             var fs = this;
             this.timer = setTimeout(function(){
                 fs.iterateScheduler.call(fs);
@@ -125,7 +181,7 @@ class FunctionScheduler {
     }
 
 
-    // Adds a function to the queue in order (from the bottom)
+    // Adds a function to the queue in order (from the top)
     // Runs immediately if specified
     // Timer is accurate to executionAccuracy
 
@@ -133,26 +189,30 @@ class FunctionScheduler {
     // Or just a delay, to be executed once if negative
 
     // Returns PID (int) of added task
-    addTask(passedInFunction, execFreqInMsec) {
-        var wasEmpty = this.tasks.length === 0;
-        var shouldRepeat = execFreqInMsec > 0;
-        var adjustedExecFreqMsec = execFreqInMsec;
+    addTask(passedInFunction, execFreqInMsec, context=null) {
+        let wasEmpty = this.tasks.isEmpty();
+        let shouldRepeat = execFreqInMsec > 0;
+        let adjustedExecFreqMsec = execFreqInMsec;
         if (!shouldRepeat) {
             adjustedExecFreqMsec = -adjustedExecFreqMsec;
         }
-        var execFreqAsIndex = Math.floor(execFreqInMsec/this.executionAccuracy);
 
-        var thisPID = this.lastPID++;
+        let execFreqAsIndex = Math.floor(execFreqInMsec/this.executionAccuracy);
 
-        var taskToAdd = new Task(
-            thisPID, passedInFunction,
-            execFreqAsIndex, shouldRepeat
+        let thisPID = ++this.lastPID;
+
+        let taskToAdd = new Task(
+            thisPID, 
+            passedInFunction,
+            execFreqAsIndex, 
+            shouldRepeat, 
+            context
         );
 
         // Add task to record
         this.PIDs[thisPID] = taskToAdd;
 
-        //Find insertion point in task 
+        // Find insertion point in task 
         this.scheduleTask(taskToAdd, this.curTimeIndex + execFreqAsIndex);
 
         if (wasEmpty) {
@@ -163,16 +223,61 @@ class FunctionScheduler {
         return thisPID;
     }
 
-    // Remove task from scheduler (WILL STILL EXECUTE NEXT) by PID (int)
-    // Returns true if task was found AND removed
+    changeTaskInterval(PID, newExecFreqInMsec) {
+        if (PID in this.PIDs) {
+            let taskToRemove = this.PIDs[PID];
+            if (taskToRemove.repeat !== true) {
+                console.warn("changeTaskInterval: existing task was not set to repeat ("+PID+")");
+                return;
+            }
+        }
+        else {
+            console.warn("changeTaskInterval was called with an undocumented PID ("+PID+")");
+            return;
+        }
+
+        // Remove task from execution
+        let theTask = this.removeTask(PID);
+        if (theTask === false) {
+            console.warn("changeTaskInterval was called with an invalid PID ("+PID+")");
+            return;
+        }
+
+        // Reschedule task (+ add it back)
+        let execFreqAsIndex = Math.floor(newExecFreqInMsec/this.executionAccuracy);
+        theTask.repeat = true;
+        theTask.executionFrequency = execFreqAsIndex; // Set new execution freq
+        this.PIDs[PID] = theTask; // Add back to record
+
+        this.scheduleTask(theTask, this.curTimeIndex + execFreqAsIndex);
+
+    }
+
+    // Remove task from scheduler by PID (int) and from PIDs
+    // Returns task if task was found AND removed
+    //         false if task was not found
     removeTask(PID) {
         if (PID in this.PIDs) {
-            var taskToRemove = this.PIDs[PID];
-            // Easiest way to remove (for now)
-            if (taskToRemove.PID === PID) {
-                taskToRemove.repeat = false;
-                return true;
+            let taskToRemove = this.PIDs[PID];
+
+            taskToRemove.repeat = false;
+            // Remove from next execution
+            let howDeep = 0;
+            while (howDeep < this.tasks.elements.length) {
+                let nextTask = this.tasks.peek(howDeep);
+                console.log("Peeking idx "+howDeep+": PID="+nextTask.PID+", next time is "+nextTask.nextExecutionIndex);
+                if (nextTask.PID === PID) {
+                    let removed = this.tasks.pop(howDeep);
+                    console.log("Tried to remove PID "+PID+" / idx "+howDeep+", removed "+removed.PID);
+                    break;
+                }
+
+                howDeep ++;
             }
+
+            delete this.PIDs[PID];
+
+            return taskToRemove;
         }
 
         return false;
@@ -181,27 +286,26 @@ class FunctionScheduler {
     scheduleTask(task, nextExecutionIndex) {
         task.nextExecutionIndex = nextExecutionIndex;
 
-        //console.log("ST at "+this.curTimeIndex+", scheduling for "+nextExecutionIndex);
-
         if (this.tasks.length == 0) {
             this.tasks.push(task);
         } else {
             var inserted = false;
-            // T[0]: 5
-            // --> T[-]: 4 <--
-            // T[1]: 3
-            // T[2]: 1
-            for (var t=this.tasks.length-1; t>=0; t--) {
-                if (this.tasks[t].nextExecutionIndex >= nextExecutionIndex) {
-                    this.tasks.splice(t, 0, task);
+            // T[0]: 1
+            // --> T[-]: 3 <--
+            // T[1]: 4
+            // T[2]: 5
+            for (let t=this.tasks.elements.length-1; t>=0; t--) {
+                let someOtherTask = this.tasks.peek(t);
+                if (nextExecutionIndex >= someOtherTask) {
+                    this.tasks.elements.splice(t, 0, task);
                     inserted = true;
                     break;
                 }
             }
 
             if (!inserted) {
-                //It got all the way to the bottom, insert as last item
-                this.tasks.push(task);
+                // It got all the way to the bottom, insert as last item
+                this.tasks.pushLast(task);
             }
         }
     }
@@ -211,26 +315,14 @@ if (typeof module !== "undefined") {
     module.exports = FunctionScheduler;
 }
 
-/*
-function toRun() {
-    console.log("-");
-}
-
-function toRun2() {
-    console.log("--");
-}
-
-function toRun3() {
-    console.log("---");
-}
 
 function testScheduler() {
     var s = new FunctionScheduler();
     s.timerBegin();
 
-    var PID1 = s.addTask(toRun, 1000);
-    var PID2 = s.addTask(toRun2, 1000);
-    var PID3 = s.addTask(toRun3, 4000);
+    var PID1 = s.addTask(() => console.log("-"), 1000);
+    var PID2 = s.addTask(() => console.log("--"), 1000);
+    var PID3 = s.addTask(() => console.log("---"), 4000);
 
     setTimeout(function() {
         var res = s.removeTask(PID1);
@@ -238,8 +330,8 @@ function testScheduler() {
     }, 8000);
 
     setTimeout(function() {
-        console.log("Removing "+PID2);
-        s.removeTask(PID2);
+        console.log("Setting faster "+PID2);
+        s.changeTaskInterval(PID2, 100);
     }, 9000);
 
     setTimeout(function() {
@@ -249,4 +341,3 @@ function testScheduler() {
 }
 
 testScheduler();
-*/

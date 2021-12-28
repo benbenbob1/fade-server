@@ -46,7 +46,7 @@ socket.onclose = (event) => {
 };
 
 socket.onerror = (err) => {
-    displayConnectionStatus(event.currentTarget.url, false);
+    displayConnectionStatus("Error! See console.", false);
     console.log(err);
 };
 
@@ -84,7 +84,7 @@ function updateFromMultiPacket(multiPacket) {
         var stripIdx = Math.floor(ledIdx / maxLedsPerStrip);
         var ledIdxInStrip = ledIdx % maxLedsPerStrip;
         
-        if (config.strips[stripIdx].numLeds > ledIdxInStrip) {
+        if (config.strips[stripIdx].numLeds > ledIdxInStrip && config.strips[stripIdx].multiColor === true) {
             setStripLedTo(allMultiLeds[ledIdx], stripIdx, ledIdxInStrip);
         }
 
@@ -93,6 +93,7 @@ function updateFromMultiPacket(multiPacket) {
 }
 
 function setStripLedTo([r,g,b], stripIdx, ledIdx) {
+    //console.log("setStripLedTo(["+r+","+g+","+b+"], "+ stripIdx + ", " + ledIdx+")");
     if (stripLeds.length > stripIdx) {
         stripLeds[stripIdx][ledIdx].style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
     }
