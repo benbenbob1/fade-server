@@ -13,10 +13,11 @@ const bodyParser      = require('body-parser'),
     WebSocket         = require('ws'), // to fc server and clients
     url               = require('url');
     
-var patterns          = require('./js/patterns');
-var Helpers           = require('./js/helpers');
-var Config            = require('./js/config');
-var FunctionScheduler = require('./js/scheduler');
+const patterns          = require('./js/patterns');
+const Helpers           = require('./js/helpers');
+const Config            = require('./js/config');
+const Scheduler         = require('./js/scheduler');
+const FunctionScheduler = Scheduler.FunctionScheduler;
 
 var app = express();
 
@@ -71,25 +72,42 @@ stripStatus = [
             v: 0-1 //percent value (brightness or lightness)
         ]
         // OR (must not be both)
-        "pattern": copy of pattern object (from patterns.js) 
-            WITH pid value
+        "pattern": {
+            id: patternName,
+            PID: patternPID
+        }
     }, ...
 ]
+
+savedPatternConfigs = {
+    "patternName": {
+        "configName": configValue
+    }
+}
 */
 
 /*
     Socket messages (server<->client)
 
     out (to the client):
-        color: {
+        {
+            'channel': 'color',
             'strip': 0,
             'color': [0, 1, 0.5]
         }
         // OR
-        color: {
+        {
+            'channel': 'color',
             'strip': 0,
+            'pattern': 'waves'
+        }
+        // OR
+        {
+            'channel': 'config',
             'pattern': 'waves',
-            'config': {...}
+            'config': {
+                'key': value
+            }
         }
 
         debug: {
@@ -100,40 +118,39 @@ stripStatus = [
             'singlePacket': [r,g,b]
         }
 
-
-        config: {
-            'pattern': 'waves',
-            CONFIG_ID: NEW_VALUE
-        }
-
-    in (to the server): /color
-        newcolor: {
+    in (to the server, no channel):
+        {
             'strip': 1,
             'pattern': 'waves'
         }
         // OR
-        newcolor: {
+        {
             'strip': 1,
             'color': [0.5, 1, 0.5]
         }
-    
-
-
-        newconfig: {
+        // OR
+        {
             'pattern': 'waves',
-            CONFIG_ID: NEW_VALUE
+            'config': { 'config_name': new_config_value }
+        }
+        // OR
+        {
+            'pattern': 'random',
+            'request': true <- indicates this socket would like config info for the pattern
         }
 
-    Upon receiving the newcolor pattern message, that pattern repeat function is
+    Upon receiving the pattern message, that pattern repeat function is
     added to the scheduler at the specified interval
 
-    //TODO make PID non static per pattern object, make options static
-    //TODO: update scheduled task interval (need to add feature to scheduler)
+    // TODO: adjustable interval
+    // TODO: "droplets" pattern, random position iterate outwards at decreasing power (brightness?)
+
 */
 
 const OFF_STATUS = {"color": OFF_COLOR_HSV};
 
 var stripStatus = Array(totalMulticolorStrips).fill(OFF_STATUS);
+var savedPatternConfigs = {};
 var oneColorStripStatus = OFF_STATUS;
 var multiStripLastLeds = Array(config.strips.length * config.maxLedsPerStrip).fill([0,0,0]);
 
@@ -251,6 +268,7 @@ app.post('/api/endpoint/dialogflow', function(req, res) {
                     if (strip.name.toLowerCase() == stripParam.toLowerCase()) {
                         stripName = sName;
                         strip = idx;
+                        // Should break here but that's not allowed in forEach
                     }
                 });
             }
@@ -260,7 +278,7 @@ app.post('/api/endpoint/dialogflow', function(req, res) {
 
     if (color) {
         setStripColorHSV(
-            -1,
+            strip,
             Helpers.rgbToHsl(color.r, color.g, color.b),
             true,
             false,
@@ -418,12 +436,12 @@ if (debug) {
 }
 
 debugServerSocket.on('connection', function(socket, req) {
-    var connAddr = req.socket.remoteAddress;
+    let connAddr = req.socket.remoteAddress;
     log("Debug socket connected "+connAddr);
 });
 
 serverSocket.on('connection', function(socket, req) {
-    var connAddr = req.socket.remoteAddress;
+    let connAddr = req.socket.remoteAddress;
     log("Socket connected " + connAddr);
     
     // Small delay so we're sure the socket is ready to receive
@@ -431,35 +449,33 @@ serverSocket.on('connection', function(socket, req) {
     
     socket.on('message', function(dataStr) {
         var data = JSON.parse(dataStr);
-        //console.log("rec: ", data);
-        if (!('strip' in data)) {
-            return;
-        }
         var strip = data.strip || 0;
 
         if ('color' in data) {
             setStripColorHSV(
-                strip,
-                data.color,
+                Number.parseInt(strip),
+                [Number.parseFloat(data.color[0]), Number.parseFloat(data.color[1]), Number.parseFloat(data.color[2])],
                 true
             );
         } else if ('pattern' in data) {
-            // Start pattern
-            startPattern(
-                data.pattern, //pattern id
-                strip
-            );
-        } else if ('config' in data) {
-            //TODO:FIXCONFIG
-            if (pattern && pattern.options &&
-                pattern.options[data.config]) {
-                var input = pattern.options[data.config].config.input;
-                if (input && typeof input.update !== undefined) {
-                    pattern.options[data.config].displayValue = data.value;
-                    input.update.call(pattern, data.value);
+            let patternId = data.pattern;
+            if ('config' in data) {
+                if (data.pattern != null && data.config != null) {
+                    adjustPatternConfig(patternId, data.config, true);
                 }
+            } else if ('request' in data) {
+                log('Recd data request for '+patternId);
+                if (patternId in savedPatternConfigs) {
+                    emitConfigToSocket(socket, patternId, savedPatternConfigs[patternId]);
+                }
+            } else if ('strip' in data) {
+                // Start pattern
+                startPattern(
+                    patternId, //pattern id
+                    Number.parseInt(strip)
+                );
             }
-        }
+        } 
     });
 });
 
@@ -509,16 +525,15 @@ function socketErr() {
 
 function objectToString(obj)
 {
-    var outStr = "";
-    outStr += obj.toString() + "->";
+    let outStr = "{";
     var allPublicNames = Object.getOwnPropertyNames(obj);
-    for (let keyIdx in allPublicNames)
-    {
+    for (let keyIdx in allPublicNames) {
         let keyName = allPublicNames[keyIdx];
-        let value = obj[keyName];
-        if (Array.isArray(value))
-        {
+        let value = JSON.stringify(obj[keyName]);
+        if (Array.isArray(value)) {
             value = value.join(", ");
+        } else if (value instanceof String) {
+            value = "\"" + value + "\"";
         }
 
         try {
@@ -528,6 +543,8 @@ function objectToString(obj)
             outStr += "\n\t" + keyName + ": ??";
         }
     }
+
+    outStr += "\n}\n";
 
     return outStr;
 }
@@ -671,48 +688,46 @@ function setStripStatus(stripIdx=0, newStatusDict) {
     }
 }
 
-//Broadcast all info about all strips to one socket (or every socket if false)
+// Broadcast all info about all strips to one socket (or every socket if false)
 function broadcastAllStrips(socket=false) {
-    var out = socket || serverSocket;
+    let out = socket || serverSocket;
 
-    for (var strip = 0; strip < stripStatus.length; strip++) {
+    for (let strip = 0; strip < stripStatus.length + hasSingleColorStrip; strip++) {
         outDict = {};
-        var stripDict = getStripStatus(strip);
+        let stripDict = getStripStatus(strip);
         if ('pattern' in stripDict) {
-            emitPatternToSocket(out, strip, stripDict.pattern.id, stripDict.pattern.config);
+            emitPatternToSocket(out, strip, stripDict.pattern.id);
         } else {
             emitColorToSocket(out, strip, stripDict.color);
-        }
-    }
-
-    if (hasSingleColorStrip)
-    {
-        if ('pattern' in oneColorStripStatus)
-        {
-            emitPatternToSocket(out, strip, oneColorStripStatus.pattern.id, oneColorStripStatus.pattern.config);
-        }
-        else {
-            emitColorToSocket(out, stripStatus.length, oneColorStripStatus.color);
         }
     }
 
 }
 
 function emitColorToSocket(socket, stripIdx, colorRgbArr) {
-    var data = {
+    let data = {
         strip: stripIdx,
         color: colorRgbArr
     };
     _emitDataToSocket(socket, "color", data);
 }
 
-function emitPatternToSocket(socket, stripIdx, patternId, configData) {
-    var data = {
+function emitPatternToSocket(socket, stripIdx, patternId) {
+    let data = {
         strip: stripIdx,
-        pattern: patternId,
-        config: configData
+        pattern: patternId
     };
+
     _emitDataToSocket(socket, "color", data);
+}
+
+function emitConfigToSocket(socket, patternId, config) {
+    let data = {
+        pattern: patternId,
+        config: config
+    };
+
+    _emitDataToSocket(socket, "config", data);
 }
 
 function emitDebugPacket(data) {
@@ -722,16 +737,10 @@ function emitDebugPacket(data) {
 function _emitDataToSocket(socket, channel, data) {
     data["channel"] = channel;
 
-    if (debug) {
-        var dictStr = "{";
-        for (var key in data) {
-            dictStr += "\n\t"+key+": "+data[key];
-        }
-        dictStr += "\n}";
-        log("[DEBUG] Emitting: "+dictStr);
-    }
-
     var strToSend = JSON.stringify(data);
+    if (debug) {
+        log("[DEBUG] _emitDataToSocket Emitting: "+strToSend);
+    }
     _emitRawDataToSocket(socket, strToSend);
 }
 
@@ -807,6 +816,7 @@ function getColorFromCommonName(colorName, type="ntc") {
             b: parseInt(result[3], 16)
         } : null;
     }
+
     var name;
     try {
         name = colorNamer(colorName);    
@@ -821,7 +831,7 @@ function getColorFromCommonName(colorName, type="ntc") {
     var col = {};
     if (!type) {
         var minDist = 300;
-        for (var typ in name) {
+        for (let typ in name) {
             if (name[typ].length > 0) {
                 var dist = name[typ][0].distance;
                 if (dist === 0) {
@@ -849,6 +859,47 @@ function getColorFromCommonName(colorName, type="ntc") {
     return null;
 }
 
+function adjustPatternConfig(patternId, newConfig={}, broadcast=true) {
+    if (!newConfig || newConfig === {}) {
+        return;
+    }
+
+    if (!savedPatternConfigs[patternId]) {
+        savedPatternConfigs[patternId] = {};
+    }
+
+    for (let configName in newConfig) {
+        savedPatternConfigs[patternId][configName] = newConfig[configName];
+
+        // Special case(s)
+        if (configName === "__interval") {
+            adjustSpeedIntervalForPattern(patternId, savedPatternConfigs[patternId][configName]);
+        }
+    }
+
+    if (broadcast) {
+        emitConfigToSocket(serverSocket, patternId, savedPatternConfigs[patternId]);
+    }
+}
+
+function adjustSpeedIntervalForPattern(patternId, newInterval) {
+    let PIDs = [];
+    for (let strip = 0; strip < stripStatus.length + hasSingleColorStrip; strip++) {
+        const stripDict = getStripStatus(strip);
+        if ("pattern" in stripDict) {
+            if (stripDict.pattern.id === patternId) {
+                PIDs.push(stripDict.pattern.PID);
+            }
+        }
+    }
+
+    log("Changing interval of PID ["+PIDs.join(", ")+"] to "+newInterval);
+
+    for (let pid in PIDs) {
+        scheduler.changeTaskInterval(pid, newInterval);
+    }
+}
+
 //Starts a pattern, or stops it if given an id of "stop"
 function startPattern(id, stripIdx=0, broadcast=true) {
     const stripDict = getStripStatus(stripIdx);
@@ -871,28 +922,35 @@ function startPattern(id, stripIdx=0, broadcast=true) {
 
     let patternObj = patterns[id];
     let runningPatternInfo = { "id": id };
-    let patternInterval = 1000; // 1 tick per second
-    if (patternObj != null && patternInterval) {
-        var patternContext = {
+    if (patternObj != null) {
+        let patternContext = {
             getColors: getColors,
             writeColorHSV: _writeColorHSV,
             writeStripLeds: _writeStripLeds,
             hslToRgb: Helpers.hslToRgb,
-            options: JSON.parse(JSON.stringify(patternObj.options)), // <- this is a HACK to deep copy. TODO: fix this
+            options: {},
             variables: {},
             stripIdx: stripIdx,
             numLeds: isOneStrip(stripIdx) ? 1 : config.strips[stripIdx].numLeds
         };
 
 
-        if (patternObj.options) {
-            for (var option in patternObj.options) {
-                var item = patternObj.options[option];
-                if (item.defaultValue && typeof item.value === "undefined") {
-                    patternContext.options[option].value = item.defaultValue;
+        if (id in savedPatternConfigs) {
+            patternObj.options = savedPatternConfigs[id];
+        } else if (patternObj.options) {
+            savedPatternConfigs[id] = {};
+            
+            for (let option in patternObj.options) {
+                let item = patternObj.options[option];
+                if (("defaultValue" in item) && typeof item.value === "undefined") {
+                    savedPatternConfigs[id][option] = item.defaultValue;
                 }
             }
+
+            patternContext.options = savedPatternConfigs[id];
         }
+
+        let patternInterval = savedPatternConfigs[id].__interval ?? 1000; // default is 1 tick per second
 
         if (patternObj.start) {
             patternObj.start.call(patternContext);
@@ -902,13 +960,13 @@ function startPattern(id, stripIdx=0, broadcast=true) {
         runningPatternInfo.PID = newPID;
         newStripDict.pattern = runningPatternInfo;
         
-        log("Started pattern: "+id+" on strip "+stripIdx+": "+objectToString(newStripDict.pattern));
+        log("Started pattern: "+id+" on strip "+stripIdx+" at interval "+patternInterval+": "+objectToString(newStripDict.pattern));
     }
 
     setStripStatus(stripIdx, newStripDict);
 
     if (broadcast) {
-        broadcastAllStrips(serverSocket);
+        emitPatternToSocket(serverSocket, stripIdx, id);
     }
 }
 
@@ -933,7 +991,7 @@ function endPattern(dontEmit=false, stripIdx=-1) {
     delete stripDict.pattern;
     stripDict.color = OFF_COLOR_HSV;
     if (!dontEmit) {
-        broadcastAllStrips(serverSocket);
+        emitColorToSocket(serverSocket, stripIdx, stripDict.color);
     }
 }
 

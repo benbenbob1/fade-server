@@ -1,10 +1,17 @@
 class ColorPicker {
+    /*
+    onColorPicked([h,s,v], stripId)
+
+    onPatternSelected(patternIdOrStop, stripId)
+
+    onConfigAdjusted(patternId, configName, configValue)
+    */
     constructor(canvasId, previewElemId=null, modalElemId=null, 
-        onColorPicked=null, onPatternSelected=null, startHSV=[0.,0.,0.]) {
+        onColorPicked=null, onPatternSelected=null, onConfigAdjusted=null, startHSV=[0.,0.,0.]) {
         this.canvas = document.getElementById(canvasId);
         this.modal = document.getElementById(modalElemId);
         this.hue = startHSV[0] || 0.;        // 0 - 1
-        this.saturation = 1.0;     // 0 - 1
+        this.saturation = 1.0;               // 0 - 1
         this.brightness = startHSV[2] || 0.; // 0 - 1
         this.createColorOverlay();
         this.previewElem = document.getElementById(previewElemId) || null;
@@ -12,9 +19,12 @@ class ColorPicker {
 
         this.hueCircleDrawn = false;
 
-        //Callback function, ([R,G,B], stripId)
+        this.patternDict = null;
+        this.lastPattern = null;
+
         this.onColorPicked = onColorPicked;
         this.onPatternSelected = onPatternSelected;
+        this.onConfigAdjusted = onConfigAdjusted;
 
         this.updatePreview(startHSV);
 
@@ -55,7 +65,6 @@ class ColorPicker {
     }
 
     updateToHSV(newHSV) {
-        console.log("Calling remote update "+newHSV);
         this.hue = newHSV[0];
         this.saturation = 1.0; // max out saturation so we always show colors
         this.brightness = newHSV[2];
@@ -237,7 +246,6 @@ class ColorPicker {
     }
 
     colorWheelClick(clickX, clickY,  colorWheelCenterX, colorWheelCenterY, colorWheelRadius) {
-
         var wheelOffsetX = clickX - colorWheelCenterX;
         var wheelOffsetY = clickY - colorWheelCenterY;
 
@@ -351,6 +359,7 @@ class ColorPicker {
     }
 
     setAvailablePatterns(dictionaryOfPatternDicts) {
+        this.patternDict = dictionaryOfPatternDicts;
         var patternContainer = document.getElementById(
             "preset-container"
         );
@@ -380,55 +389,98 @@ class ColorPicker {
     // Called by external preset updating (from server)
     choosePreset(id, options={}) {
         if (debug) {
-            console.log("[DEBUG] selecting preset: "+id);
+            console.log("[DEBUG] selecting preset: "+id, options);
         }
 
+        this.lastPattern = id;
+
         $('#pattern-'+id).addClass('button-selected');
-        var config = options || patterns[id].config;
-        if (config) {
-            this.setupConfig(config);
+        if (options != null && options !== {}) {
+            this.setupConfig(options);
         }
     }
 
     chosePreset(id) {
-        var last = this.deselectPreset();
-        if (id !== last) {
-            if (this.onPatternSelected) {
-                this.onPatternSelected(id, selectedStripIdx);
-            }
-        } else {
-            removeConfig();
-            if (this.onPatternSelected) {
-                this.onPatternSelected('stop', selectedStripIdx);
-            }
+        let newId = id === this.lastPattern ? 'stop' : id;
+        if (newId !== this.lastPattern) {
+            this.deselectPreset();
         }
+
+        if (this.onPatternSelected) {
+            this.onPatternSelected(newId, selectedStripIdx);
+        }
+
+        this.lastPattern = newId;
     }
 
     /*
 
-    Pattern config Space
+    Pattern config space
 
     */
 
-    rangeAdjusted(item, toUpdate) {
+    displayValueForRangeUpdate(displayElement, newValue, configInputDict) {
+        let displayValue = newValue;
+        if ("displayValueForRangeUpdate" in configInputDict) {
+            displayValue = configInputDict.displayValueForRangeUpdate(newValue);
+        } else if (configInputDict.valueType === "percent") {
+            displayValue = (Math.round(newValue * 1000) / 10) + '%';
+        }
+
+        displayElement.innerText = displayValue;
+    }
+
+    configValueForRangeUpdate(configInputDict, rangeVal) {
+        if ("valueRange" in configInputDict && "range" in configInputDict) {
+            let valueRange = configInputDict.valueRange;
+            let range = configInputDict.range;
+            let m = ((valueRange.max - valueRange.min) / 
+                (range.max - range.min));
+            let b = valueRange.min;
+            return rangeVal * m + b;
+        }
+
+        return rangeVal;
+    }
+
+    rangeValueForConfigUpdate(configInputDict, configVal) {
+        if ("valueRange" in configInputDict && "range" in configInputDict) {
+            // valueRange.min => range.min
+            // valueRange.max => range.max
+            let valueRange = configInputDict.valueRange;
+            let range = configInputDict.range;
+
+            return (((configVal - valueRange.min) / (valueRange.max - valueRange.min)) * (range.max - range.min)) + range.min;
+        }
+
+        return configVal;
+    }
+
+    rangeAdjusted(item, toUpdate, optionName) {        
         if (toUpdate && toUpdate.length>0) {
-            var elem = document.getElementById(toUpdate);
-            elem.innerText = item.value + '%';
+            let elem = document.getElementById(toUpdate);
+            let configInputDict = this.patternDict[this.lastPattern].options[optionName].config.input;
+            let rangeValue = item.value;
+            if (configInputDict.valueType === "percent") {
+                rangeValue = item.value / 100;
+            }
+
+            this.displayValueForRangeUpdate(elem, rangeValue, configInputDict);
         }
     }
 
-    rangeSet(element) {
-        post({
-            config: element.id,
-            value: parseInt(element.value)
-        });
+    rangeSet(element, optionName) {
+        if (this.onConfigAdjusted && this.lastPattern) {
+            let rangeVal = Number.parseInt(element.value);
+            let configInputDict = this.patternDict[this.lastPattern].options[optionName].config.input;
+            this.onConfigAdjusted(this.lastPattern, element.id, this.configValueForRangeUpdate(configInputDict, rangeVal));
+        }
     }
 
     checkboxSet(element) {
-        post({
-            config: element.id,
-            value: element.checked
-        });
+        if (this.onConfigAdjusted && this.lastPattern) {
+            this.onConfigAdjusted(this.lastPattern, element.id, element.checked === true);
+        }
     }
 
     removeConfig() {
@@ -440,16 +492,18 @@ class ColorPicker {
     }
 
     setupConfig(options) {
-        var container = document.getElementById("config-space");
-        if (!options) {
+        let colorpicker = this;
+        let container = document.getElementById("config-space");
+        if (!options || options == null) {
             removeConfig();
             return;
         } else if ($(container).is(":visible")) {
             $(container).empty();
         }
-        var docFrag = document.createDocumentFragment();
-        var option, config;
-        for (var index in options) {
+
+        let docFrag = document.createDocumentFragment();
+        let option, config;
+        for (let index in options) {
             option = options[index];
             config = option.config;
             var rowElem = document.createElement("div");
@@ -459,18 +513,22 @@ class ColorPicker {
             lLabel.className = "config-item item-left";
             rLabel.className = "config-item item-right";
             var elem = document.createElement("input");
+
+            if (!('value' in option)) {
+                option.value = option.defaultValue;
+            }
+
             elem.type = config.input.type;
             if (config.label.left) {
                 lLabel.id = config.label.left.id;
                 lLabel.innerText = config.label.left.text;
             }
+
             if (config.label.right) {
                 rLabel.id = config.label.right.id;
-                if (config.input.valueType && 
-                    config.input.valueType === "percent" && 
-                    option.displayValue != null) {
-                    rLabel.innerText = option.displayValue + "%";
-                } else {
+                if (config.label.right.id != null) {
+                    this.displayValueForRangeUpdate(rLabel, this.rangeValueForConfigUpdate(config.input, option.value), config.input);
+                } else if (config.label.right.text != null) {
                     rLabel.innerText = config.label.right.text;
                 }
             }
@@ -481,12 +539,12 @@ class ColorPicker {
             if (config.input.type == "range") {
                 if (elem.toChange) {
                     elem.addEventListener("input", function(event) {
-                        rangeAdjusted(event.target, event.target.toChange);
+                        colorpicker.rangeAdjusted(event.target, event.target.toChange, index);
                     });
                 }
 
                 elem.addEventListener("change", function(event) {
-                    rangeSet(event.target);
+                    colorpicker.rangeSet(event.target, index);
                 });
 
                 if (config.input.range != null) {
@@ -494,16 +552,24 @@ class ColorPicker {
                     elem.setAttribute("max", config.input.range.max);
                 }
 
-                if (option.displayValue != null) {
-                    $(elem).val(option.displayValue);
-                }
+                if (option.value != null) {
+                    let configVal = option.value;
+                    let rangeVal = configVal;
+                    if (config.input.valueType === "percent") {
+                        rangeVal = configVal * 100;
+                    } else {
+                        rangeVal = this.rangeValueForConfigUpdate(config.input, configVal);
+                    }
 
+                    $(elem).val(rangeVal);
+                }
             } else if (config.input.type == "checkbox") {
                 elem.addEventListener("change", function(event) {
-                    checkboxSet(event.target);
+                    colorpicker.checkboxSet(event.target);
                 });
-                if (option.displayValue != null) {
-                    elem.checked = option.displayValue;
+
+                if (option.value != null) {
+                    elem.checked = option.value;
                 }
             }
             

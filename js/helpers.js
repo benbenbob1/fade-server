@@ -101,7 +101,7 @@ class Helpers {
             if (backgroundOnly) {
                 if (!elemToSet.prevBg) {
                     elemToSet.prevBg = elemToSet.style.cssText; // save a backup of the style, to revert easily
-                    console.log("saved as ", elemToSet.prevBg);
+                    //console.log("saved as ", elemToSet.prevBg);
                 }
 
                 var allCssElemIds = Object.keys(innerElems);
@@ -113,7 +113,7 @@ class Helpers {
                     var canSet = ["background", "backgroundColor", "animation"];
                     for (var cssItem in bgElem) {
                         if (canSet.includes(cssItem)) {
-                            console.log("Setting "+ cssItem);
+                            //console.log("Setting "+ cssItem);
                             elemToSet.style[cssItem] = bgElem[cssItem];
                         }
                     }

@@ -5,6 +5,7 @@
   "author": "Ben Brown : http://benbrown.science",
   "homepage": "http://benbrown.science",
   "main": "app.js",
+  "test": "jest",
   "dependencies": {
     "body-parser": "^1.18.3",
     "color-namer": "^1.1.0",
@@ -15,5 +16,8 @@
     "tls": "0.0.1",
     "typescript": "^3.0.3",
     "ws": "^7.4.2"
+  },
+  "devDependencies": {
+    "jest": "^27.4.5"
   }
 }

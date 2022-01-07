@@ -1,4 +1,38 @@
 var __configs = {
+    speed: {
+        label: {
+            left: {
+                id: "",
+                text: "Speed"
+            },
+            right: {
+                id: "config-speed-input-percent",
+                text: ""
+            }
+        },
+        input: {
+            type: "range",
+            valueType: "custom",
+            displayValueForRangeUpdate: (newVal) => {
+                let qtr = 20/4.0;
+                if (newVal <= qtr) {
+                    return "Slow";
+                } else if (newVal <= qtr * 3) {
+                    return "Average";
+                } else {
+                    return "Fast";
+                }
+            },
+            range: {
+                min: 0,
+                max: 20
+            },
+            valueRange: {
+                min: 2500,
+                max: 200
+            }
+        }
+    },
     fade: {
         label: {
             left: {
@@ -7,10 +41,7 @@ var __configs = {
             }
         },
         input: {
-            type: "checkbox",
-            update: function(value) {
-                this.options.fade.value = value;
-            }
+            type: "checkbox"
         }
     },
     randomize: {
@@ -21,10 +52,7 @@ var __configs = {
             }
         },
         input: {
-            type: "checkbox",
-            update: function(value) {
-                this.options.randomize.value = value;
-            }
+            type: "checkbox"
         }
     },
     brightness: {
@@ -40,9 +68,6 @@ var __configs = {
         },
         input: {
             type: "range",
-            update: function(value) {
-                this.options.brightness.value = (value/100);
-            },
             valueType: "percent",
             range: {
                 min: 0,
@@ -63,9 +88,6 @@ var __configs = {
         },
         input: {
             type: "range",
-            update: function(value) {
-                this.options.brightness.value = (value/100);
-            },
             valueType: "percent",
             range: {
                 min: 0,
@@ -87,9 +109,6 @@ var __configs = {
         input: {
             type: "range",
             valueType: "percent",
-            update: function(value) {
-                this.options.saturation.value = (value/100);
-            },
             range: {
                 min: 0,
                 max: 100
@@ -101,6 +120,10 @@ var __configs = {
 var patterns = {
     'rainbow-fade': {
         options: {
+            __interval: {
+                defaultValue: 1000,
+                config: __configs.speed
+            },
             fade: {
                 displayValue: true,
                 defaultValue: true,
@@ -135,21 +158,22 @@ var patterns = {
             if (this.variables.hue >= 1.0) {
                 this.variables.hue = 0.0;
             }
+
             this.writeColorHSV(
                 [
                     this.variables.hue, 
-                    this.options.saturation.value,
-                    this.options.brightness.value,
+                    this.options.saturation,
+                    this.options.brightness,
                 ],
                 this.stripIdx
             );
-            //console.log(this.options.saturation.value);
-            if (!this.options.fade.value) {
+
+            if (!this.options.fade) {
                 this.writeColorHSV(
                     [
                         this.variables.hue, 
-                        this.options.saturation.value,
-                        this.options.brightness.value,
+                        this.options.saturation,
+                        this.options.brightness,
                     ],
                     this.stripIdx
                 );
@@ -158,6 +182,10 @@ var patterns = {
     },
     'random': {
         options: {
+            __interval: {
+                defaultValue: 1000,
+                config: __configs.speed
+            },
             fade: {
                 displayValue: true,
                 defaultValue: true,
@@ -196,12 +224,12 @@ var patterns = {
             }
             
             var strip = [];
-            for (var x=0; x<64; x++) {
-                strip.push(randColor(this.options.brightness.value));
+            for (var x=0; x<this.numLeds; x++) {
+                strip.push(randColor(this.options.brightness));
             }
             
             this.writeStripLeds(strip, this.stripIdx);
-            if (!this.options.fade.value) {
+            if (!this.options.fade) {
                 this.writeStripLeds(strip, this.stripIdx);
             }
         }
@@ -261,10 +289,10 @@ var patterns = {
             }
         },
         function: function() {
-            var strip = []; //one strip of 60 leds
+            var strip = []; //one strip of this.numLeds leds
             var leds = this.numLeds;
             for (var i=0; i<leds; i++) {
-                strip[i] = [0,0,0];
+                strip[i] = [0, 0, 0];
             }
             var redPos   = this.variables.redPos   || 0;
             var greenPos = this.variables.greenPos || 0;
@@ -274,19 +302,19 @@ var patterns = {
 
             for (var red=0; red<(leds); red++) {
                 offset = red - redPos;
-                strip[red][0] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+                strip[red][0] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
             }
             for (var green=0; green<(leds); green++) {
                 offset = green - greenPos;
-                strip[green][1] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+                strip[green][1] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
             }
             for (var blue=0; blue<(leds); blue++) {
                 offset = blue - bluePos;
-                strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness.value;
+                strip[blue][2] = 255 * Math.sin(offset / (leds/2) * Math.PI) * this.options.brightness;
             }
 
             this.writeStripLeds(strip, this.stripIdx);
-            if (!this.options.fade.value) {
+            if (!this.options.fade) {
                 this.writeStripLeds(strip, this.stripIdx);
             }
 
@@ -300,7 +328,7 @@ var patterns = {
                 this.variables.bluePos = 0;
             }
 
-            if (this.options.randomize.value) {
+            if (this.options.randomize) {
                 redPos += Math.random()*11;
                 greenPos += Math.random()*6;
                 bluePos += Math.random()*2;
@@ -374,14 +402,14 @@ var patterns = {
                     hue -= 1.0;
                 }
                 var col = this.hslToRgb(
-                    hue, this.options.saturation.value, 
-                    this.options.brightness.value
+                    hue, this.options.saturation, 
+                    this.options.brightness
                 );
                 strip[led] = col;
             }
             
             this.writeStripLeds(strip, this.stripIdx);
-            if (!this.options.fade.value) {
+            if (!this.options.fade) {
                 this.writeStripLeds(strip, this.stripIdx);
             }
         }

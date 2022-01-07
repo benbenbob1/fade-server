@@ -133,6 +133,7 @@ button.colorbtn.offline {
     max-width: 80%;
     height: 60px;
     width: 280px;
+    --bgwidth: -280px;
     text-align: center;
     font-size: 30px;
     font-family: 'Montserrat', sans-serif;
@@ -147,6 +148,7 @@ button.colorbtn.offline {
     display: block;
     width: 100%;
     position: relative;
+    color: darkgray;
 }
 
 .config-item-row {
@@ -194,7 +196,6 @@ button.colorbtn.offline {
     right: 0;
     visibility: hidden;
     transition: 0.1s linear all;
-    overflow: scroll;
     user-select: none;
 }
 
@@ -337,6 +338,7 @@ button.colorbtn.offline {
 .preset-button {
     width: 30px;
     height: 30px;
+    --bgwidth: -30px;
     border: 3px solid white;
     border-radius: 5px;
     margin-left: 10px;
@@ -389,7 +391,7 @@ button.colorbtn.offline {
         background-position-x: 0px;
     }
     to {
-        background-position-x: -30px;
+        background-position-x: var(--bgwidth);
     }
 }
 

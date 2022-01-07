@@ -34,16 +34,21 @@ class Queue {
         this.elements.push(element);
     }
 
-    // Adds item at bottom of queue (last item)
+    // Adds item at bottom of queue (array 0)
     pushLast(element) {
         this.elements.unshift(element);
     }
 
-    // Returns item at top of queue (lowest on array)
+    // Returns item at top of queue (end of array) or the nth from top
     pop(elementIdx = 0) {
-        if (elementIdx !== 0)
+        if (this.isEmpty()) {
+            return null;
+        }
+
+        if (elementIdx > 0)
         {
-            return this.elements.splice(-elementIdx, 1);
+            // splice(-1) removes last element and returns array of removed elements
+            return this.elements.splice(-elementIdx-1, 1)[0];
         }
 
         return this.elements.pop();
@@ -95,6 +100,8 @@ class FunctionScheduler {
 
         this.previousExecutionTime = -1;
 
+        this.currentlyExecuting = false; // Act as a mutex
+
         /*
         PIDs: {
             PID: task object if still repeating, otherwise false
@@ -127,7 +134,7 @@ class FunctionScheduler {
     // Increases curTimeIndex by 1
     // Runs all tasks scheduled for this time index, then reschedules them if
     // applicable.
-    // ASSUMES tasks are in order!
+    // ASSUMES tasks are in order: top of queue is to be executed soonest
     iterateScheduler() {
         this.curTimeIndex ++;
 
@@ -136,11 +143,14 @@ class FunctionScheduler {
             return;
         }
 
+        this.currentlyExecuting = true;
+
         let howDeep = 0;
         while (howDeep < this.tasks.elements.length) {
-            let nextTask = this.tasks.peek();
-            if (nextTask.nextExecutionIndex <= this.curTimeIndex) {
+            //console.log(`Comparing T[${howDeep}]: ${task.nextExecutionIndex}`);
+            if (this.tasks.peek().nextExecutionIndex <= this.curTimeIndex) {
                 let task = this.tasks.pop();
+                //console.log("Now running "+task.PID);
                 task.execute();
                 if (task.repeat == true) {
                     // Add task back if should repeat
@@ -178,6 +188,8 @@ class FunctionScheduler {
                 fs.iterateScheduler.call(fs);
             }, nextTick);
         }
+
+        this.currentlyExecuting = false;
     }
 
 
@@ -216,7 +228,6 @@ class FunctionScheduler {
         this.scheduleTask(taskToAdd, this.curTimeIndex + execFreqAsIndex);
 
         if (wasEmpty) {
-            //console.log("Adding task to empty queue");
             this.iterateScheduler();
         }
 
@@ -232,14 +243,14 @@ class FunctionScheduler {
             }
         }
         else {
-            console.warn("changeTaskInterval was called with an undocumented PID ("+PID+")");
+            console.warn("changeTaskInterval was called with an unknown PID ("+PID+")");
             return;
         }
 
         // Remove task from execution
         let theTask = this.removeTask(PID);
         if (theTask === false) {
-            console.warn("changeTaskInterval was called with an invalid PID ("+PID+")");
+            console.warn("changeTaskInterval was called with an invalid PID (could not remove "+PID+")");
             return;
         }
 
@@ -261,14 +272,25 @@ class FunctionScheduler {
             let taskToRemove = this.PIDs[PID];
 
             taskToRemove.repeat = false;
+
+            while (this.currentlyExecuting) {
+                //console.log("Waiting for execution to stop");
+            }
+
+            // console.log("Before removing "+PID+" from tasks:");
+            // let howDeep2 = 0;
+            // while (howDeep2<this.tasks.elements.length) {
+            //     let task = this.tasks.peek(howDeep2);
+            //     console.log(`T[${howDeep2}]: ${task.PID}`);
+            //     howDeep2 ++;
+            // }
+
             // Remove from next execution
             let howDeep = 0;
             while (howDeep < this.tasks.elements.length) {
                 let nextTask = this.tasks.peek(howDeep);
-                console.log("Peeking idx "+howDeep+": PID="+nextTask.PID+", next time is "+nextTask.nextExecutionIndex);
                 if (nextTask.PID === PID) {
                     let removed = this.tasks.pop(howDeep);
-                    console.log("Tried to remove PID "+PID+" / idx "+howDeep+", removed "+removed.PID);
                     break;
                 }
 
@@ -290,17 +312,22 @@ class FunctionScheduler {
             this.tasks.push(task);
         } else {
             var inserted = false;
+            // Task[queue depth]: next execution index
             // T[0]: 1
             // --> T[-]: 3 <--
             // T[1]: 4
-            // T[2]: 5
-            for (let t=this.tasks.elements.length-1; t>=0; t--) {
-                let someOtherTask = this.tasks.peek(t);
-                if (nextExecutionIndex >= someOtherTask) {
-                    this.tasks.elements.splice(t, 0, task);
+            // T[2]: 5 <- bottom of queue
+            let howDeep = 0;
+            while (howDeep<this.tasks.elements.length) {
+                let someOtherTask = this.tasks.peek(howDeep);
+                // If this is sooner than that
+                if (nextExecutionIndex <= someOtherTask.nextExecutionIndex) {
+                    this.tasks.elements.splice(this.tasks.elements.length-howDeep, 0, task);
                     inserted = true;
                     break;
                 }
+
+                howDeep ++;
             }
 
             if (!inserted) {
@@ -312,32 +339,9 @@ class FunctionScheduler {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = FunctionScheduler;
+    module.exports = { 
+        FunctionScheduler: FunctionScheduler,
+        Task: Task, 
+        Queue: Queue 
+    };
 }
-
-
-function testScheduler() {
-    var s = new FunctionScheduler();
-    s.timerBegin();
-
-    var PID1 = s.addTask(() => console.log("-"), 1000);
-    var PID2 = s.addTask(() => console.log("--"), 1000);
-    var PID3 = s.addTask(() => console.log("---"), 4000);
-
-    setTimeout(function() {
-        var res = s.removeTask(PID1);
-        console.log("Removing "+PID1+" :: "+res);
-    }, 8000);
-
-    setTimeout(function() {
-        console.log("Setting faster "+PID2);
-        s.changeTaskInterval(PID2, 100);
-    }, 9000);
-
-    setTimeout(function() {
-        console.log("Removing "+PID3);
-        s.removeTask(PID3);
-    }, 10000);
-}
-
-testScheduler();

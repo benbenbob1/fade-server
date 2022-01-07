@@ -26,6 +26,15 @@ stripStatus = [
 */
 // For each led strip, first all multicolored, then single-color strips
 var serverCurStatus = []
+var serverPatternConfig = {};
+
+/*
+serverPatternConfig = {
+    "waves": {
+        "optionName": optionValue
+    }
+}
+*/
 
 socket.onmessage = (event) => {
     var strip = 0;
@@ -36,21 +45,23 @@ socket.onmessage = (event) => {
     }
 
     if ("channel" in data) {
-        if (data.channel != "color") {
-            return;
+        if (data.channel === "color") {
+            if ('strip' in data) {
+                strip = data.strip;
+            }
+
+            if ('color' in data) {
+                setLocalColor(strip, [data.color[0], data.color[1], data.color[2]]);
+            } else if ('pattern' in data) {
+                setLocalColor(strip, [0, 1, 0]);
+                setLocalPattern(strip, data.pattern);
+            }
+        } else if (data.channel === "config") {
+            if ('pattern' in data) {
+                setLocalConfig(data.pattern, data.config);
+            }
         }
-    }
-
-    if ('strip' in data) {
-        strip = data.strip;
-    }
-
-    if ('color' in data) {
-        setLocalColor(strip, [data.color[0], data.color[1], data.color[2]]);
-    } else if ('pattern' in data) {
-        setLocalColor(strip, [0, 1, 0]);
-        setLocalPattern(strip, data.pattern);
-    }
+    }    
 };
 
 socket.onopen = (event) => {
@@ -90,7 +101,7 @@ $(document).ready(function() {
 });
 
 function stripButtonPressed(buttonIdx, stripName="") {
-    var curHSV = [0.0,1.0,0.0];
+    var curHSV = [0.0, 1.0, 0.0];
     var curPattern;
     if (serverCurStatus.length > buttonIdx) {
         if ("color" in serverCurStatus[buttonIdx]) {
@@ -101,8 +112,16 @@ function stripButtonPressed(buttonIdx, stripName="") {
     }
 
     showColorOverlay(true, curHSV, buttonIdx, stripName);
-    if (curPattern != null && curPattern != 'stop') {
-        colorOverlay.choosePreset(curPattern);
+    if (colorOverlay != null && curPattern != null && curPattern != 'stop') {
+        let options = {};
+        if (curPattern in serverPatternConfig && serverPatternConfig[curPattern] != null) {
+            options = buildFullOptionsDictForPattern(curPattern);
+        }
+        else {
+            askServerForPatternConfig(curPattern);
+        }
+        
+        colorOverlay.choosePreset(curPattern, options);
     }
 }
 
@@ -141,7 +160,7 @@ function disableButtons(enabled) {
     }
 }
 
-//Strip is #, Color is [h,s,v]
+// Strip is #, Color is [h,s,v]
 function setLocalColor(strip, hsv) {
     var elem = document.getElementById('cc'+(strip+1));
 
@@ -166,31 +185,105 @@ function setLocalColor(strip, hsv) {
         colorOverlay.updateToHSV(hsv);
     }
 
-    serverCurStatus[strip] = {"color": hsv};
+    serverCurStatus[strip] = { "color": hsv };
+}
+
+function buildFullOptionsDictForPattern(patternId) {
+    displayOptions = {};
+    let patternOptions = patterns[patternId].options;
+    let curPatternValues = serverPatternConfig[patternId];
+    if (!curPatternValues) {
+        curPatternValues = {};
+    }
+
+    for (let optionName in patternOptions) {
+        displayOptions[optionName] = patternOptions[optionName];
+        if (optionName in curPatternValues) {
+            displayOptions[optionName].value = curPatternValues[optionName];
+        } else {
+            displayOptions[optionName].value = displayOptions[optionName].defaultValue;
+        }
+    }
+
+    return displayOptions;
 }
 
 //Strip is #, Pattern is string
-function setLocalPattern(strip, patternName) {
-    var colorOverlayOpen = false;
+function setLocalPattern(strip, patternName, config=null) {
+    let colorOverlayOpen = false;
     if (colorOverlay != null && colorOverlay.curStrip === strip) {
         colorOverlayOpen = true;
     }
 
-    var elem = document.getElementById('cc'+(strip+1));
+    let elem = document.getElementById('cc'+(strip+1));
     if (elem && patterns[patternName]) {
         Helpers.setElemStyleToMatchStyleDict(patterns[patternName].display, elem, true);
     }
 
-    serverCurStatus[strip] = {"pattern": patternName};
+    serverCurStatus[strip] = { "pattern": patternName };
+
+    if (config) {
+        if (!serverPatternConfig[patternName]) {
+            serverPatternConfig[patternName] = {};
+        }
+
+        for (let configKey in config) {
+            serverPatternConfig[patternName][configKey] = config[configKey];
+        }
+    }
 
     if (colorOverlayOpen) {
         if (serverCurStatus.length > strip && "color" in serverCurStatus[strip]) {
-            colorOverlay.updatePreview([0,1,0]);
+            colorOverlay.updatePreview([0, 1, 0]);
         }
 
         colorOverlay.deselectPreset();
-        colorOverlay.choosePreset(patternName);
+
+        let options = {};
+        if (patternName in serverPatternConfig && serverPatternConfig[patternName] != null) {
+            options = buildFullOptionsDictForPattern(patternName);
+        }
+        else {
+            askServerForPatternConfig(patternName);
+        }
+
+        colorOverlay.choosePreset(patternName, options);
     }
+}
+
+function setLocalConfig(patternName, config={}) {
+    let colorOverlayOpen = false;
+    if (colorOverlay != null && colorOverlay.lastPattern === patternName) {
+        colorOverlayOpen = true;
+    }
+
+    if (config) {
+        if (!serverPatternConfig[patternName]) {
+            serverPatternConfig[patternName] = {};
+        }
+
+        for (let configKey in config) {
+            serverPatternConfig[patternName][configKey] = config[configKey];
+        }
+    }
+
+    if (colorOverlayOpen) {
+        colorOverlay.setupConfig(buildFullOptionsDictForPattern(patternName));
+    }
+}
+
+function setPatternConfig(patternId, configKey, configValue) {
+    let theValue = configValue;
+    if (patterns[patternId].options[configKey].config.input.valueType === "percent") {
+        theValue = configValue / 100.0;
+    }
+
+    let config = {};
+    config[configKey] = theValue;
+    socketSend({
+        'pattern': patternId,
+        'config': config
+    });
 }
 
 function postColor(strip, [h,s,v]) {
@@ -204,6 +297,13 @@ function postPattern(strip, id) {
     socketSend({
         'strip': strip,
         'pattern': id
+    });
+}
+
+function askServerForPatternConfig(pattern) {
+    socketSend({
+        'pattern': pattern,
+        'request': true
     });
 }
 
@@ -268,6 +368,7 @@ function showColorOverlay(visible, startHSV, stripId=-1, stripName="") {
             "color-overlay-modal",
             (hsv, chosenStripId) => postColor(chosenStripId, hsv),
             (patternId, chosenStripId) => postPattern(chosenStripId, patternId),
+            (patternId, configKey, configValue) => setPatternConfig(patternId, configKey, configValue),
             startHSV
         );
         colorOverlay.curStrip = stripId;
