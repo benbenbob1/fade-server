@@ -950,7 +950,7 @@ function startPattern(id, stripIdx=0, broadcast=true) {
             patternContext.options = savedPatternConfigs[id];
         }
 
-        let patternInterval = savedPatternConfigs[id].__interval ?? 1000; // default is 1 tick per second
+        let patternInterval = savedPatternConfigs[id].__interval > 0 ? savedPatternConfigs[id].__interval : 1000; // default is 1 tick per second
 
         if (patternObj.start) {
             patternObj.start.call(patternContext);
