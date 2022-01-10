@@ -286,10 +286,18 @@ function setPatternConfig(patternId, configKey, configValue) {
     });
 }
 
+function roundDecimal(value, decimals=3) {
+    return Number(value.toFixed(decimals));
+}
+
 function postColor(strip, [h,s,v]) {
     socketSend({
         'strip': strip,
-        'color': [h, s, v]
+        'color': [
+            roundDecimal(h),
+            roundDecimal(s),
+            roundDecimal(v)
+        ]
     });
 }
 

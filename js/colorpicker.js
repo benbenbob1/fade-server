@@ -88,7 +88,7 @@ class ColorPicker {
         var radIncr = Math.PI / 40.;
         var toRad = PI2; //second to last
         for (var rad=0.0; rad<toRad; rad += radIncr) {
-            var hue = ( rad / PI2 ) * 1.0;
+            var hue = ( rad / PI2 );
             var rgb = Helpers.hslToRgb(hue, 1.0, 0.5);
 
             context.fillStyle = Helpers.rgbStringFromColorArray(rgb);
@@ -255,14 +255,15 @@ class ColorPicker {
         );
 
         if (distanceClickFromCenter > colorWheelRadius) {
-            //Click was outside of color wheel
+            // Click was outside of color wheel
             return
         }
 
         var angle = Math.atan2(wheelOffsetY, wheelOffsetX);
         var hue = angle / (Math.PI * 2.);
 
-        this.setHue(hue);
+        // TODO: currently returns -0.5 to 0.5, should return 0 - 1
+        this.setHue(hue); // -0.5 - 0.5
         this.createColorOverlay();
     }
 
@@ -389,7 +390,7 @@ class ColorPicker {
     // Called by external preset updating (from server)
     choosePreset(id, options={}) {
         if (debug) {
-            console.log("[DEBUG] selecting preset: "+id, options);
+            console.log("[DEBUG] ColorPicker | selecting preset: "+id, options);
         }
 
         this.lastPattern = id;

@@ -433,12 +433,12 @@ if (debugServerSocket != null)
 serverSocket = new WebSocket.Server({ noServer: true });
 if (debug) {
     debugServerSocket = new WebSocket.Server({ noServer: true });
-}
 
-debugServerSocket.on('connection', function(socket, req) {
-    let connAddr = req.socket.remoteAddress;
-    log("Debug socket connected "+connAddr);
-});
+    debugServerSocket.on('connection', function(socket, req) {
+        let connAddr = req.socket.remoteAddress;
+        log("Debug socket connected "+connAddr);
+    });
+}
 
 serverSocket.on('connection', function(socket, req) {
     let connAddr = req.socket.remoteAddress;
@@ -906,7 +906,6 @@ function startPattern(id, stripIdx=0, broadcast=true) {
     let newStripDict = {};
 
     if (id == 'stop') {
-        log("startPattern called with stop id on strip "+stripIdx);
         endPattern(false, stripIdx);
         return;
     } else if ("pattern" in stripDict) {
