@@ -236,6 +236,10 @@ var patterns = {
     },
     'waves': {
         options: {
+            __interval: {
+                defaultValue: 1000,
+                config: __configs.speed
+            },
             fade: {
                 displayValue: true,
                 defaultValue: true,
@@ -355,6 +359,10 @@ var patterns = {
     },
     'moving-fade': {
         options: {
+            __interval: {
+                defaultValue: 1000,
+                config: __configs.speed
+            },
             fade: {
                 displayValue: true,
                 defaultValue: true,

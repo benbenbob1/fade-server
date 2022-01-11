@@ -1,15 +1,20 @@
-var colorsLocked;
-var buttons = null;
-var loc = 'ws://'+document.location.host+'/ws_color';
-var socket = new WebSocket(loc);
-var curFade = '';
-var reachable = false;
+let colorsLocked;
+let buttons = null;
+let sockProtocol = "ws://";
+if (location.protocol === 'https:') {
+    sockProtocol = "wss://";
+}
 
-var colorOverlay = null;
-var selectedStripIdx = -1;
+let loc = sockProtocol + document.location.host + '/ws_color';
+let socket = new WebSocket(loc);
+let curFade = '';
+let reachable = false;
 
-var config = {};
-var debug = false;
+let colorOverlay = null;
+let selectedStripIdx = -1;
+
+let config = {};
+let debug = false;
 
 /*
 stripStatus = [
