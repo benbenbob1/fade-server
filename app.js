@@ -54,8 +54,8 @@ fs.stat(PIBLASTER_DEV, function(err, stats) {
 });
 
 var ledPins = {
-    red: 23,
-    green: 18,
+    red: 17,
+    green: 22,
     blue: 24
 };
 
